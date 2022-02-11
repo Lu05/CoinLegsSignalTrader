@@ -1,0 +1,14 @@
+*.pdb
+.vs/
+bin
+obj
+*.csproj*.cache
+*.g.cs
+*_wpftmp
+*.user
+*.~*
+*.bak
+*.log
+
+/CoinLegsSignalTrader/appsettings.Development.json
+/CoinLegsSignalTrader/nlog.config

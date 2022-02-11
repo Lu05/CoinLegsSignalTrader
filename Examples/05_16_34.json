@@ -1,0 +1,18 @@
+{
+  "SignalTypeId": 4,
+  "Type": 503,
+  "Exchange": "USD Markets",
+  "MarketName": "MINAUSDT",
+  "Signal": -1,
+  "SignalDate": "2022-01-19T17:16:28.2765424+01:00",
+  "Closed": false,
+  "SignalPrice": 3.411,
+  "StopLoss": 3.51333,
+  "Target1": 3.400767,
+  "Target2": 3.390534,
+  "Target3": 3.37689,
+  "Target4": 3.34278,
+  "Target5": 3.30867,
+  "ClosePrice": null,
+  "CloseDate": "0001-01-01T00:54:00+00:54"
+}

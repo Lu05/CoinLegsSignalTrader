@@ -1,0 +1,18 @@
+{
+  "SignalTypeId": 1,
+  "Type": 503,
+  "Exchange": "USD Markets",
+  "MarketName": "KLAYUSDT",
+  "Signal": 1,
+  "SignalDate": "2022-01-19T12:00:40.2277116+01:00",
+  "Closed": false,
+  "SignalPrice": 1.379,
+  "StopLoss": 1.33957,
+  "Target1": 1.385143,
+  "Target2": 1.389286,
+  "Target3": 1.39481,
+  "Target4": 1.40862,
+  "Target5": 1.42243,
+  "ClosePrice": null,
+  "CloseDate": "0001-01-01T00:54:00+00:54"
+}

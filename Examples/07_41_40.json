@@ -1,0 +1,18 @@
+{
+  "SignalTypeId": 4,
+  "Type": 503,
+  "Exchange": "USD Markets",
+  "MarketName": "XMRUSDT",
+  "Signal": -1,
+  "SignalDate": "2022-01-19T19:41:33.2394643+01:00",
+  "Closed": false,
+  "SignalPrice": 208.8,
+  "StopLoss": 214.858,
+  "Target1": 207.9742,
+  "Target2": 207.3484,
+  "Target3": 206.514,
+  "Target4": 204.428,
+  "Target5": 202.342,
+  "ClosePrice": null,
+  "CloseDate": "0001-01-01T00:54:00+00:54"
+}

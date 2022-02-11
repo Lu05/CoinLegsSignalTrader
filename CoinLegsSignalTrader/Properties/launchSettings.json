@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "CoinLegsSignalTrader": {
+      "commandName": "Project",
+      "launchUrl": "http://0.0.0.0:53145",
+      "applicationUrl": "http://0.0.0.0:53145",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

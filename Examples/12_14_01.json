@@ -1,0 +1,18 @@
+{
+  "SignalTypeId": 4,
+  "Type": 503,
+  "Exchange": "USD Markets",
+  "MarketName": "FUNUSDT",
+  "Signal": -1,
+  "SignalDate": "2022-01-19T12:13:54.7745101+01:00",
+  "Closed": false,
+  "SignalPrice": 0.01142,
+  "StopLoss": 0.0117626,
+  "Target1": 0.01138574,
+  "Target2": 0.01135148,
+  "Target3": 0.0113058,
+  "Target4": 0.0111916,
+  "Target5": 0.0110774,
+  "ClosePrice": null,
+  "CloseDate": "0001-01-01T00:54:00+00:54"
+}
