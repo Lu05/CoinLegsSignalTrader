@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using CoinLegsSignalTrader.Interfaces;
 using CoinLegsSignalTrader.Model;
 using Microsoft.AspNetCore.Mvc;
@@ -28,7 +29,7 @@ namespace CoinLegsSignalTrader.Controller
 
             if (legsNotification != null)
             {
-                Logger.Debug($"Notification received: {content}");
+                Logger.Debug($"Notification received: {JsonSerializer.Serialize(legsNotification)}");
                 try
                 {
                     var notification = new Notification(legsNotification);

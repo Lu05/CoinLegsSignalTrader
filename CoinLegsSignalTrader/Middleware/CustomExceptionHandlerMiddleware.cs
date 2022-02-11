@@ -26,7 +26,7 @@ namespace CoinLegsSignalTrader.Middleware
             }
             catch (Exception exception)
             {
-                Logger.Error(exception, $"Exception when invoke {context.Request.Method}:{context.Request.GetDisplayUrl()}");
+                Logger.Error(exception, "Exception on middleware");
             }
         }
     }
