@@ -17,9 +17,9 @@ namespace CoinLegsSignalTrader.Helpers
             return BitConverter.GetBytes(decimal.GetBits(value)[3])[2];
         }
 
-        public static decimal CalculateAmount(decimal riskPerTrade, decimal stopLoss, decimal entryPrice, decimal leverage)
+        public static decimal CalculateAmount(decimal riskPerTrade, decimal stopLoss, decimal entryPrice)
         {
-            return Math.Round(Math.Abs(riskPerTrade / (1 - stopLoss / entryPrice) / entryPrice / leverage), 8);
+            return Math.Round(Math.Abs(riskPerTrade / (1 - stopLoss / entryPrice) / entryPrice), 8);
         }
     }
 }
