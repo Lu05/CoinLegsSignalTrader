@@ -8,5 +8,6 @@
         decimal LastPrice { get; set; }
         decimal EntryPrice { get; set; }
         decimal ExitPrice { get; set; }
+        decimal Quantity { get; set; }
     }
 }

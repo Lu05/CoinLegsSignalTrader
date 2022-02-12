@@ -31,12 +31,14 @@ namespace CoinLegsSignalTrader
             {
                 app.UseDeveloperExceptionPage();
             }
+
+            app.ApplicationServices.GetService<ISignalManager>();
             app.UseMiddleware<CustomExceptionHandlerMiddleware>();
 
             app.UseStaticFiles();
             app.UseRouting();
             app.UseCors();
-            
+
             app.UseEndpoints(endpoints => { endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}"); });
         }
     }

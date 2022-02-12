@@ -5,6 +5,7 @@ using Bybit.Net.Objects.Models.Socket;
 using CoinLegsSignalTrader.EventArgs;
 using CoinLegsSignalTrader.Helpers;
 using CoinLegsSignalTrader.Interfaces;
+using CoinLegsSignalTrader.Telegram;
 using CryptoExchange.Net.Authentication;
 using CryptoExchange.Net.Objects;
 using CryptoExchange.Net.Sockets;
@@ -55,17 +56,20 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             {
                 if (_symbols.Contains(symbolName))
                     return false;
-                
+
+                //first switch so cross, otherwise isolated leverage can not be updated
+                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, leverage, leverage);
                 var result = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true,
                     leverage, leverage);
                 if (!result.Success)
                 {
                     Logger.Info($"Could not update leverage {result.Error} - {symbolName}");
+                    await TelegramBot.Instance.SendMessage($"Could not update leverage {result.Error} - {symbolName}");
                 }
 
                 var side = isShort ? OrderSide.Sell : OrderSide.Buy;
                 var orderType = isLimitOrder ? OrderType.Limit : OrderType.Market;
-                
+
                 var order = await _client.UsdPerpetualApi.Trading.PlaceOrderAsync(symbolName, side,
                     orderType, amount, TimeInForce.ImmediateOrCancel, false, false, null, null,
                     takeProfit, stopLoss, TriggerType.LastPrice, TriggerType.LastPrice);
@@ -124,12 +128,24 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                 {
                     Logger.Error($"Stop loss of {symbolName} could not be updates: {update.Error}");
                 }
+
                 return update.Success;
             }
             finally
             {
                 _waitHandle.Release();
             }
+        }
+
+        public async Task<decimal> GetUnrealizedPnlForSymbol(string symbolName)
+        {
+            var position = await _client.UsdPerpetualApi.Account.GetPositionAsync(symbolName);
+            if (position.Data.Any())
+            {
+                return position.Data.Sum(p => p.UnrealizedPnl);
+            }
+
+            return 0;
         }
 
         public event EventHandler<OrderFilledEventArgs> OnOrderFilled;
@@ -151,7 +167,8 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                         {
                             _symbols.Add(symbol.Key);
                             var entryPrice = symbol.Value.Average(o => o.Price);
-                            OnOrderFilled?.Invoke(this, new OrderFilledEventArgs(symbol.Key, entryPrice));
+                            var quantity = symbol.Value.Sum(o => o.Quantity);
+                            OnOrderFilled?.Invoke(this, new OrderFilledEventArgs(symbol.Key, entryPrice, quantity));
                         }
                         else
                         {

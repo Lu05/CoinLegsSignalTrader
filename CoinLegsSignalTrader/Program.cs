@@ -1,5 +1,5 @@
-﻿using System.Runtime.InteropServices;
-using CoinLegsSignalTrader.Helpers;
+﻿using CoinLegsSignalTrader.Helpers;
+using CoinLegsSignalTrader.Telegram;
 using NLog;
 using LogLevel = NLog.LogLevel;
 
@@ -14,11 +14,13 @@ namespace CoinLegsSignalTrader
             LogManager.Configuration.Variables["basedir"] = path;
 
             AppDomain.CurrentDomain.UnhandledException += CurrentDomainOnUnhandledException;
-            LogManager.GetCurrentClassLogger().Info(@$"public IP is {await GetIp()}");
+            var ip = await GetIp();
+            LogManager.GetCurrentClassLogger().Info(@$"public IP is {ip}");
+            await TelegramBot.Instance.SendMessage(@$"public IP is {ip}");
 
             var config = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", true, true)
+                .AddJsonFile("appsettings.json", true, false)
                 .AddEnvironmentVariables().Build();
 
             var port = config.GetValue<int>("Port");
@@ -29,7 +31,7 @@ namespace CoinLegsSignalTrader
                     logging.AddConfiguration(hostingContext.Configuration);
                     logging.AddConsole();
                 }).ConfigureWebHostDefaults(webbuilder => { webbuilder.UseUrls($"http://0.0.0.0:{port}").UseStartup<Startup>(); });
-
+            
             await builder.RunConsoleAsync();
         }
 

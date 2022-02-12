@@ -17,4 +17,5 @@ internal class Position : IPosition
     public decimal LastPrice { get; set; }
     public decimal EntryPrice { get; set; }
     public decimal ExitPrice { get; set; }
+    public decimal Quantity { get; set; }
 }

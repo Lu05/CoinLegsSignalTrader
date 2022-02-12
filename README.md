@@ -90,8 +90,12 @@ There is a nlog.example.config at the release folder.
 If you rename it to nlog.config logging will be done as configured at this file.
 At the moment I recommend file logging. Otherwise it is hard to find bugs.
 #### Telegram support
-At the moment it is only possible to log to telegram via nlog. Maybe there will be more support at future versions. Commands etc.
-If you want to receive logs via telegram you need to create a [bot](https://core.telegram.org/bots) and put the BotToken and the ChatId at line 8 and 9 at the nlog.config. The Info-Level should be good for receiving logs via telegram.
+You can add a chat id and a bot token to the appsettings.json. Look at the example file.
+If this is configured you will receive notifications via telegram and there are also some commands to check open positions etc.
+Here is how to create a [bot](https://core.telegram.org/bots).
+
+The old method via nlog is still supported.
+If you configure both you will receive most notifications twice.
 ### run the application
 If eyerything is configured you could run the application.
 It's best to click the 'Test yout link' button on coinlegs to see if you receive notifications.

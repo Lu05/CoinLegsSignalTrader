@@ -1,6 +1,5 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using CoinLegsSignalTrader.Interfaces;
 using CoinLegsSignalTrader.Model;
 using Microsoft.AspNetCore.Mvc;

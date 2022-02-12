@@ -4,12 +4,15 @@ namespace CoinLegsSignalTrader.Helpers
 {
     public class CalculationHelper
     {
-        public static string GetPnL(decimal entryPrice, decimal lastPrice, bool isShort, decimal leverage)
+        public static string GetPnL(decimal quantity, decimal entryPrice, decimal lastPrice, bool isShort)
         {
-            var value = (lastPrice / entryPrice - 1) * leverage * 100;
-            if (isShort) value *= -1;
+            var value = quantity * (lastPrice - entryPrice);
+            if (isShort)
+            {
+                value = quantity * (entryPrice - lastPrice);
+            }
 
-            return value.ToString("F2", CultureInfo.InvariantCulture) + "%";
+            return value.ToString("F2", CultureInfo.InvariantCulture) + "$";
         }
 
         public static int GetDigits(decimal value)

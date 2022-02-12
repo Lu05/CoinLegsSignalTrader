@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http.Extensions;
-using NLog;
+﻿using NLog;
 using ILogger = NLog.ILogger;
 
 namespace CoinLegsSignalTrader.Middleware

@@ -8,6 +8,7 @@ namespace CoinLegsSignalTrader.Interfaces
         Task<bool> SymbolExists(string symbolName);
         Task<int> GetSymbolDigits(string symbolName);
         Task<bool> SetStopLoss(string symbolName, bool isShort, decimal stopLoss);
+        Task<decimal> GetUnrealizedPnlForSymbol(string symbolName);
         event EventHandler<OrderFilledEventArgs> OnOrderFilled;
         event EventHandler<PositionClosedEventArgs> OnPositionClosed;
         event EventHandler<TickerUpdateEventArgs> OnTickerChanged;
