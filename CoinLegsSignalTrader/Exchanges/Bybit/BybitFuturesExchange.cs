@@ -140,7 +140,7 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
         public async Task<decimal> GetUnrealizedPnlForSymbol(string symbolName)
         {
             var position = await _client.UsdPerpetualApi.Account.GetPositionAsync(symbolName);
-            if (position.Data.Any())
+            if (position.Success && position.Data.Any())
             {
                 return position.Data.Sum(p => p.UnrealizedPnl);
             }

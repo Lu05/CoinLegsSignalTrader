@@ -5,6 +5,7 @@ using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using ILogger = NLog.ILogger;
 
 namespace CoinLegsSignalTrader.Telegram
 {
@@ -19,7 +20,7 @@ namespace CoinLegsSignalTrader.Telegram
     {
         private readonly ChatId _chatId;
         private readonly TelegramBotClient _client;
-
+        private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
         public TelegramBotInstance()
         {
             var config = new ConfigurationBuilder()
@@ -103,7 +104,14 @@ namespace CoinLegsSignalTrader.Telegram
                     }
                     else
                     {
-                        OnCommand?.Invoke(this, new TelegramCommandEventArgs(messageText.Remove(0, 1)));
+                        try
+                        {
+                            OnCommand?.Invoke(this, new TelegramCommandEventArgs(messageText.Remove(0, 1)));
+                        }
+                        catch (Exception e)
+                        {
+                            Logger.Error(e);
+                        }
                     }
                 }
             }
