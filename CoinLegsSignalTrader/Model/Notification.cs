@@ -33,9 +33,10 @@ namespace CoinLegsSignalTrader.Model
         public decimal Target4 { get; set; }
         public decimal Target5 { get; set; }
         public bool Closed { get; set; }
-
+        public int Decimals { get; set; }
         public void Round(int decimals)
         {
+            Decimals = decimals;
             SignalPrice = Math.Round(SignalPrice, decimals);
             StopLoss = Math.Round(StopLoss, decimals);
             Target1 = Math.Round(Target1, decimals);
@@ -44,5 +45,7 @@ namespace CoinLegsSignalTrader.Model
             Target4 = Math.Round(Target4, decimals);
             Target5 = Math.Round(Target5, decimals);
         }
+
+        
     }
 }

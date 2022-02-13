@@ -14,6 +14,7 @@
         decimal Target4 { get; set; }
         decimal Target5 { get; set; }
         bool Closed { get; set; }
+        int Decimals { get; set; }
         void Round(int decimals);
     }
 }

@@ -99,7 +99,7 @@ namespace CoinLegsSignalTrader.Strategies
                 if (_position != null)
                 {
                     var message =
-                        $"Position closed for {_position.Notification.SymbolName}. Entry {_position.EntryPrice}, exit {Math.Round(_position.ExitPrice, 3)}, pnl {CalculationHelper.GetPnL(_position.Quantity, _position.EntryPrice, _position.ExitPrice, _position.IsShort)}";
+                        $"Position closed for {_position.Notification.SymbolName}. Entry {Math.Round(_position.EntryPrice, _notification.Decimals)}, exit {Math.Round(_position.ExitPrice, _notification.Decimals)}, pnl {CalculationHelper.GetPnL(_position.Quantity, _position.EntryPrice, _position.ExitPrice, _position.IsShort)}";
                     Logger.Info(message);
                     TelegramBot.Instance.SendMessage(message).GetAwaiter().GetResult();
                 }
@@ -127,7 +127,7 @@ namespace CoinLegsSignalTrader.Strategies
             _waitHandle.Wait(5000);
             try
             {
-                Logger.Debug($"Ticker updated for {_notification.SymbolName} to {Math.Round(e.LastPrice, 3)}");
+                Logger.Debug($"Ticker updated for {_notification.SymbolName} to {Math.Round(e.LastPrice, _notification.Decimals)}");
 
                 var needsUpdate = false;
                 decimal stopLoss = 0;
@@ -197,7 +197,7 @@ namespace CoinLegsSignalTrader.Strategies
                 if (_position != null)
                     return;
 
-                var message = $"Position created for {_notification.SymbolName}, entry {Math.Round(e.EntryPrice, 3)}";
+                var message = $"Position created for {_notification.SymbolName}, entry {Math.Round(e.EntryPrice, _notification.Decimals)}";
                 Logger.Info(message);
                 TelegramBot.Instance.SendMessage(message).GetAwaiter().GetResult();
                 _position = new Position(_notification)
