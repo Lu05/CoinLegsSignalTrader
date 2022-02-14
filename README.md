@@ -1,6 +1,6 @@
 # CoinLegsSignalTrader
-IMPORTANT: This software is free of use and YOU and nobody else will be responsible for anything that is executed!
-
+**IMPORTANT**: This software is free of use and YOU and nobody else will be responsible for anything that is executed!
+Also this has nothing to do with the official coinlegs team. It is my private work.
 
 ## What this tool will do
 You will get notified if you have a valid coinlegs.com subscription where API is included.
@@ -12,7 +12,7 @@ But stop loss and take profit are at the exchange so this will execute for sure.
 ## Configuration
 ### VPS
 It is best to have a linux VPSto run the app 24/7. You don't need one wich much performance. 1GB ram and some GB disk space for logging should be enough.
-If you have set up you VPS you can download the files from the [release page](https://github.com/Lu05/CoinLegsSignalTrader/releases/tag/v0.0.1-pre).
+If you have set up you VPS you can download the files from the [release page](https://github.com/Lu05/CoinLegsSignalTrader/releases).
 Put the files wherever  you want to on the server.
 After that go to the folder you put the files and execute 
 <br>
