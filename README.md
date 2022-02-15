@@ -1,3 +1,5 @@
+<img src="https://user-images.githubusercontent.com/3795343/154130985-939b02b1-a722-4bc2-b9ac-7a16a2b77540.svg" width="200" height="200" />
+
 # CoinLegsSignalTrader
 **IMPORTANT**: This software is free of use and YOU and nobody else will be responsible for anything that is executed!
 Also this has nothing to do with the official coinlegs team. It is my private work.
@@ -118,6 +120,14 @@ If the price will hit TP(take profit) 2 SL(stop loss) will be set to break even,
 ![image](https://user-images.githubusercontent.com/3795343/153482176-ab4cfc30-c6b9-427f-9430-d0df3d1c49a6.png)
 
 ## Support
+
+If you need technical support, want to talk about this project or discuss new ideas you can find it here:
+</br>
+<img src="https://user-images.githubusercontent.com/3795343/154133549-215dd069-4ca3-4bc6-b3b5-d715b40689c9.png" width="100" />
+</br>
+https://t.me/CoinLegsSignalTrader
+
+
 As described above the app is free of use.
 If you are making some good money with it you have multiple possibilities to support my work.
 ### Ref links
@@ -140,3 +150,5 @@ bc1qtf3fg05xp5zau7k20sewpd0qtswfevept9v09v
 0x419dB75736Ce12C6100fB3059485E4eBae366f05
 
 Also I'm using the the libraries of [jkorf](https://github.com/JKorf). U can also support him.
+</br>
+The icon is from [here](https://www.flaticon.com/free-icons/robot)
