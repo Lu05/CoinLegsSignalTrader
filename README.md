@@ -1,6 +1,8 @@
-# CoinLegsSignalTrader
-IMPORTANT: This software is free of use and YOU and nobody else will be responsible for anything that is executed!
+<img src="https://user-images.githubusercontent.com/3795343/154130985-939b02b1-a722-4bc2-b9ac-7a16a2b77540.svg" width="200" height="200" />
 
+# CoinLegsSignalTrader
+**IMPORTANT**: This software is free of use and YOU and nobody else will be responsible for anything that is executed!
+Also this has nothing to do with the official coinlegs team. It is my private work.
 
 ## What this tool will do
 You will get notified if you have a valid coinlegs.com subscription where API is included.
@@ -12,7 +14,7 @@ But stop loss and take profit are at the exchange so this will execute for sure.
 ## Configuration
 ### VPS
 It is best to have a linux VPSto run the app 24/7. You don't need one wich much performance. 1GB ram and some GB disk space for logging should be enough.
-If you have set up you VPS you can download the files from the [release page](https://github.com/Lu05/CoinLegsSignalTrader/releases/tag/v0.0.1-pre).
+If you have set up you VPS you can download the files from the [release page](https://github.com/Lu05/CoinLegsSignalTrader/releases).
 Put the files wherever  you want to on the server.
 After that go to the folder you put the files and execute 
 <br>
@@ -118,6 +120,14 @@ If the price will hit TP(take profit) 2 SL(stop loss) will be set to break even,
 ![image](https://user-images.githubusercontent.com/3795343/153482176-ab4cfc30-c6b9-427f-9430-d0df3d1c49a6.png)
 
 ## Support
+
+If you need technical support, want to talk about this project or discuss new ideas you can find it here:
+</br>
+<img src="https://user-images.githubusercontent.com/3795343/154133549-215dd069-4ca3-4bc6-b3b5-d715b40689c9.png" width="100" />
+</br>
+https://t.me/CoinLegsSignalTrader
+
+
 As described above the app is free of use.
 If you are making some good money with it you have multiple possibilities to support my work.
 ### Ref links
@@ -140,3 +150,5 @@ bc1qtf3fg05xp5zau7k20sewpd0qtswfevept9v09v
 0x419dB75736Ce12C6100fB3059485E4eBae366f05
 
 Also I'm using the the libraries of [jkorf](https://github.com/JKorf). U can also support him.
+</br>
+The icon is from [here](https://www.flaticon.com/free-icons/robot)
