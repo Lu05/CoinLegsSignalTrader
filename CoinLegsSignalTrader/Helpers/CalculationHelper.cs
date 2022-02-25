@@ -24,5 +24,16 @@ namespace CoinLegsSignalTrader.Helpers
         {
             return Math.Round(Math.Abs(riskPerTrade / (1 - stopLoss / entryPrice) / entryPrice), 8);
         }
+
+        public static decimal GetTriggerPrice(decimal signalPrice, bool isShort)
+        {
+            var digits = GetDigits(signalPrice);
+            var factor = 1 / Math.Pow(10, digits);
+            if(isShort)
+            {
+                return signalPrice + (decimal)factor;
+            }
+            return signalPrice - (decimal)factor;
+        }
     }
 }

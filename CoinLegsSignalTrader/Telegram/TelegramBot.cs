@@ -23,6 +23,10 @@ namespace CoinLegsSignalTrader.Telegram
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
         public TelegramBotInstance()
         {
+#if DEBUG
+            return;
+#endif
+
             var config = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", true, false)

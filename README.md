@@ -67,21 +67,33 @@ At the first line you can configure the port to which the app should listen to. 
 Next you should configure the exchanges section.
 At the moment only ByBit is supported. Enter your API and secret key here. The urls are for testnet. If you want to go live you can find the urls needed [here](https://bybit-exchange.github.io/docs/inverse/#t-authentication).
 You will need both, rest and sockets for updates.
+| Property| Type|      Usage| 
+|:----------|:-------------|:-------------|
+MarginMode | sting | Isolated or Cross
+OrderTimeout | int | order timeout in seconds if the order is not filled
+MaxOpenPositions | int | max open position over all exchanges
 ### Signals
 The next section is the singnals section. Here you should use whatever you like to execute at the exchange.
 #### Parameters
-| Property|      Usage| 
-|:----------|:-------------|
-| Type |  the signal type from coinlegs. 503 is for market place signals 
-| SignalTypeId |    the id for the signal type from coinlegs. 4 is for BlackFish short for example, 1 is for long
-| Exchange | name from the exchange on which the order should ne executed 
-| Strategy| strategy which should be used for the signal
-| Leverage| leverage for this signal
-| RiskPerTrade| risk per trade - dollar value which will be lost if stop loss will be hit with the configured leverage. You will not loose more money for one trade.
-| SignalName| not in use at the moment
-| TakeProfitIndex| take profit index for some strategies. 1 is for Target1, 2 for Target2...
+| Property|      Type| Usage| 
+|:----------|:-------------|:-------------|
+| Type | int |  the signal type from coinlegs. 503 is for market place signals 
+| SignalTypeId |int|    the id for the signal type from coinlegs. 4 is for BlackFish short for example, 1 is for long
+| Exchange |string| name from the exchange on which the order should ne executed 
+| Strategy| string| strategy which should be used for the signal
+| Leverage|decimal| leverage for this signal
+| RiskPerTrade|decimal| risk per trade - dollar value which will be lost if stop loss will be hit with the configured leverage. You will not loose more money for one trade.
+| SignalName| string | not in use at the moment
+| TakeProfitIndex| int| take profit index for some strategies. 1 is for Target1, 2 for Target2...
+TrailingOffset | decimal| offset of between current price and stop loss
+TrailingStartOffset | decimal | value where the trailing will start
+UseStopLossFromSignal | bool | Use the stop loss from the signal or the stop loss value from the config
+TakeProfit | decimal | take profit
+StopLoss | decimal | stop loss
 
-All parameters are required but not every parameter is used in every strategy.
+> **NOTE** all decimal parameters except Leverage and RiskPerTrade are percentage values. So 1 means 100% and 0.01 means 1%
+
+> **NOTE** not all properties are used in every strategy. If the parameter is not given the default value of the type will be used.
 ### Config on coinlegs
 Can be found [here](https://medium.com/@coinlegs/coinlegs-api-216cbd1978a4).
 Remeber to use the port configured at appsettings.config. The url will than look like this:

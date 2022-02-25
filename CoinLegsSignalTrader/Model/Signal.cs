@@ -12,5 +12,10 @@ namespace CoinLegsSignalTrader.Model
         public string SignalName { get; set; }
         public string Strategy { get; set; }
         public int TakeProfitIndex { get; set; }
+        public bool UseStopLossFromSignal { get; set; }
+        public decimal TakeProfit { get; set; }
+        public decimal StopLoss { get; set; }
+        public decimal TrailingStartOffset { get; set; }
+        public decimal TrailingOffset { get; set; }
     }
 }

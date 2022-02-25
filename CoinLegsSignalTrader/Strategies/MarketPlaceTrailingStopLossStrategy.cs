@@ -9,22 +9,23 @@ using ILogger = NLog.ILogger;
 namespace CoinLegsSignalTrader.Strategies
 {
     /// <summary>
-    ///     Strategy with fixed take profit target based on the config file
+    ///  This strategy has strailing stop loss with an offset where it starts to trail
     /// </summary>
-    public class MarketPlaceFixedTakeProfitStrategy : IStrategy
+    public class MarketPlaceTrailingStopLossStrategy : IStrategy
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
         private readonly SemaphoreSlim _waitHandle = new(1, 1);
         private INotification _notification;
         private IPosition _position;
         private ISignal _signal;
+        private bool _isTrailingActive;
 
-        public MarketPlaceFixedTakeProfitStrategy()
+        public MarketPlaceTrailingStopLossStrategy()
         {
             Id = Guid.NewGuid();
         }
 
-        public static string Name => "MarketPlaceFixedTakeProfitStrategy";
+        public static string Name => "MarketPlaceTrailingStopLossStrategy";
 
         public async Task<bool> Execute(IExchange exchange, INotification notification, ISignal signal)
         {
@@ -48,23 +49,28 @@ namespace CoinLegsSignalTrader.Strategies
                 _notification.Round(tickerDigits);
 
                 decimal takeProfit;
-                try
+                decimal stopLoss;
+                if (_notification.Signal < 0)
                 {
-                    takeProfit = (decimal)notification.GetType().GetProperty($"Target{signal.TakeProfitIndex}")?.GetValue(notification)!;
+                    takeProfit = Math.Round(notification.SignalPrice - (notification.SignalPrice * signal.TakeProfit), tickerDigits);
+                    stopLoss = Math.Round(notification.SignalPrice + (notification.SignalPrice * signal.StopLoss), tickerDigits);
                 }
-                catch (Exception e)
+                else
                 {
-                    Logger.Info($"Could not read take profit for {notification.SymbolName} index {signal.TakeProfitIndex}");
-                    await TelegramBot.Instance.SendMessage($"Could not read take profit for {notification.SymbolName} index {signal.TakeProfitIndex}");
-                    Logger.Error(e);
-                    return false;
+                    takeProfit = Math.Round(notification.SignalPrice + (notification.SignalPrice * signal.TakeProfit), tickerDigits);
+                    stopLoss = Math.Round(notification.SignalPrice - (notification.SignalPrice * signal.StopLoss), tickerDigits);
                 }
 
+                if (signal.UseStopLossFromSignal)
+                {
+                    stopLoss = _notification.StopLoss;
+                }
+                
                 RegisterExchangeEvents();
 
                 var amount =
                     CalculationHelper.CalculateAmount(_signal.RiskPerTrade, _notification.StopLoss, _notification.SignalPrice);
-                var order = await Exchange.PlaceOrderAsync(_notification.SymbolName, _notification.SignalPrice, _notification.Signal < 0, true, amount, _notification.StopLoss, takeProfit,
+                var order = await Exchange.PlaceOrderAsync(_notification.SymbolName, _notification.SignalPrice, _notification.Signal < 0, true, amount, stopLoss, takeProfit,
                     signal.Leverage);
                 if (!order)
                 {
@@ -89,6 +95,7 @@ namespace CoinLegsSignalTrader.Strategies
         private void RegisterExchangeEvents()
         {
             Exchange.OnOrderFilled += ExchangeOrderFilled;
+            Exchange.OnTickerChanged += ExchangeOnTickerChanged;
             Exchange.OnPositionClosed += ExchangeOnPositionClosed;
         }
 
@@ -126,12 +133,78 @@ namespace CoinLegsSignalTrader.Strategies
         {
             Exchange.OnOrderFilled -= ExchangeOrderFilled;
             Exchange.OnPositionClosed -= ExchangeOnPositionClosed;
+            Exchange.OnTickerChanged -= ExchangeOnTickerChanged;
+        }
+
+        private void ExchangeOnTickerChanged(object sender, TickerUpdateEventArgs e)
+        {
+            if (_position == null || _position.Notification.SymbolName != e.SymbolName)
+                return;
+            
+            _waitHandle.Wait(5000);
+            try
+            {
+                Logger.Debug($"Ticker updated for {_notification.SymbolName} to {Math.Round(e.LastPrice, _notification.Decimals)}");
+                decimal stopLoss = 0;
+                bool needsUpdate = false;
+                if (_position.IsShort)
+                {
+                    if (!_isTrailingActive)
+                    {
+                        var offset = 1 - e.LastPrice / _position.EntryPrice;
+                        if (offset > _signal.TrailingStartOffset)
+                        {
+                            Logger.Debug($"Enabled trailing for {SymbolName} at {e.LastPrice}");
+                            _isTrailingActive = true;
+                        }
+                    }
+                    if(!_isTrailingActive)
+                        return;
+                    var sl = e.LastPrice + e.LastPrice * _signal.TrailingOffset;
+                    if (_position.LastLoss > sl)
+                    {
+                        stopLoss = sl;
+                        needsUpdate = true;
+                    }
+                }
+                else
+                {
+                    if (!_isTrailingActive)
+                    {
+                        var offset = e.LastPrice / _position.EntryPrice - 1;
+                        if (offset > _signal.TrailingStartOffset)
+                        {
+                            Logger.Debug($"Enabled trailing for {SymbolName} at {e.LastPrice}");
+                            _isTrailingActive = true;
+                        }
+                    }
+                    if(!_isTrailingActive)
+                        return;
+                    var sl = e.LastPrice + e.LastPrice * _signal.TrailingOffset;
+                    if (_position.LastLoss < sl)
+                    {
+                        stopLoss = sl;
+                        needsUpdate = true;
+                    }
+                }
+                if (needsUpdate)
+                {
+                    _position.LastLoss = stopLoss;
+                    Exchange.SetStopLoss(_position.Notification.SymbolName, _position.IsShort, stopLoss);
+                    var message = $"Stop loss updated for {_notification.SymbolName} to {stopLoss}";
+                    Logger.Info(message);
+                    TelegramBot.Instance.SendMessage(message).GetAwaiter().GetResult();
+                }
+            }
+            finally
+            {
+                _waitHandle.Release();
+            }
         }
 
         private void ExchangeOrderFilled(object sender, OrderFilledEventArgs e)
         {
             _waitHandle.Wait(5000);
-
             try
             {
                 if (_position != null)

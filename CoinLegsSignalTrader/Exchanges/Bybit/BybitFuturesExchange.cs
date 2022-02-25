@@ -1,7 +1,9 @@
-﻿using Bybit.Net.Clients;
+﻿using System.Timers;
+using Bybit.Net.Clients;
 using Bybit.Net.Enums;
 using Bybit.Net.Objects;
 using Bybit.Net.Objects.Models.Socket;
+using CoinLegsSignalTrader.Enums;
 using CoinLegsSignalTrader.EventArgs;
 using CoinLegsSignalTrader.Helpers;
 using CoinLegsSignalTrader.Interfaces;
@@ -12,6 +14,7 @@ using CryptoExchange.Net.Sockets;
 using Newtonsoft.Json;
 using NLog;
 using ILogger = NLog.ILogger;
+using Timer = System.Timers.Timer;
 
 namespace CoinLegsSignalTrader.Exchanges.Bybit
 {
@@ -23,6 +26,10 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
         private readonly List<string> _symbols = new();
         private readonly Dictionary<string, int> _symbolSubscriptions = new();
         private readonly SemaphoreSlim _waitHandle = new(1, 1);
+        private readonly int _maxPositions;
+        private readonly int _orderTimeout;
+        private readonly Dictionary<string, KeyValuePair<string, DateTime>> _orderTimeouts = new();
+        private readonly MarginMode _marginMode;
 
         public BybitFuturesExchange(BybitFuturesExchangeConfig config)
         {
@@ -40,10 +47,57 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                 AutoReconnect = true
             });
 
+            _maxPositions = config.MaxOpenPositions;
+            _orderTimeout = config.OrderTimeOut;
+            _marginMode = config.MarginMode;
+
             var subscription = _socketClient.UsdPerpetualStreams.SubscribeToUserTradeUpdatesAsync(TradeUpdates).GetAwaiter().GetResult();
             if (!subscription.Success)
             {
                 Logger.Error($"Could not subscribe to UserTradeUpdates {subscription.Error}");
+            }
+
+            var orderTimeoutTimer = new Timer(TimeSpan.FromMinutes(1).TotalMilliseconds)
+            {
+                AutoReset = true
+            };
+            orderTimeoutTimer.Elapsed += OrderTimeoutOnElapsed;
+            orderTimeoutTimer.Start();
+        }
+
+        private void OrderTimeoutOnElapsed(object sender, ElapsedEventArgs e)
+        {
+            _waitHandle.Wait(5000);
+            try
+            {
+                var keys = _orderTimeouts.Keys.ToList();
+                foreach (var orderId in keys)
+                {
+                    var order = _client.UsdPerpetualApi.Trading.GetOrdersAsync(_orderTimeouts[orderId].Key, orderId).Result;
+                    if (order.Success)
+                    {
+                        if (order.Data.Data.Any() && DateTime.Now > _orderTimeouts[orderId].Value)
+                        {
+                            var cancled = _client.UsdPerpetualApi.Trading.CancelOrderAsync(_orderTimeouts[orderId].Key, orderId).Result;
+                            if (!cancled.Success)
+                            {
+                                Logger.Error($"Failed on cancel order {cancled.Error}");
+                            }
+                            else
+                            {
+                                _orderTimeouts.Remove(orderId);
+                            }
+                        }
+                        else if (!order.Data.Data.Any())
+                        {
+                            _orderTimeouts.Remove(orderId);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _waitHandle.Release();
             }
         }
 
@@ -55,28 +109,38 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             try
             {
                 if (_symbols.Contains(symbolName))
-                    return false;
-
-                //first switch so cross, otherwise isolated leverage can not be updated
-                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, leverage, leverage);
-                var result = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true,
-                    leverage, leverage);
-                if (!result.Success)
                 {
-                    Logger.Info($"Could not update leverage {result.Error} - {symbolName}");
-                    await TelegramBot.Instance.SendMessage($"Could not update leverage {result.Error} - {symbolName}");
+                    Logger.Info($"Position for {symbolName} already opened!");
+                    await TelegramBot.Instance.SendMessage($"Position for {symbolName} already opened!");
+                    return false;
                 }
+
+                if (_symbols.Count > _maxPositions)
+                {
+                    Logger.Info($"Position limit reached: {_maxPositions}");
+                    await TelegramBot.Instance.SendMessage($"Position limit reached: {_maxPositions}");
+                    return false;
+                }
+
+                await UpdateMarginMode(symbolName, leverage);
 
                 var side = isShort ? OrderSide.Sell : OrderSide.Buy;
                 var orderType = isLimitOrder ? OrderType.Limit : OrderType.Market;
 
-                var order = await _client.UsdPerpetualApi.Trading.PlaceOrderAsync(symbolName, side,
-                    orderType, amount, TimeInForce.ImmediateOrCancel, false, false, null, null,
-                    takeProfit, stopLoss, TriggerType.LastPrice, TriggerType.LastPrice);
+                decimal triggerPrice = CalculationHelper.GetTriggerPrice(signalPrice, isShort);
+
+                var order = await _client.UsdPerpetualApi.Trading.PlaceConditionalOrderAsync(symbolName, side,
+                    orderType, amount, signalPrice, triggerPrice, TimeInForce.GoodTillCanceled, false, false, signalPrice,
+                    TriggerType.LastPrice, null, takeProfit, stopLoss, TriggerType.LastPrice, TriggerType.LastPrice);
 
                 if (order.Success)
                 {
                     Logger.Debug($"Order placed {JsonConvert.SerializeObject(order)}");
+                    if (_orderTimeout > 0)
+                    {
+                        _orderTimeouts.Add(order.Data.Id, new KeyValuePair<string, DateTime>(symbolName, DateTime.Now.AddSeconds(_orderTimeout)));
+                    }
+
                     var subscription = await
                         _socketClient.UsdPerpetualStreams.SubscribeToTickerUpdatesAsync(symbolName,
                             TickerUpdateHandler);
@@ -103,6 +167,28 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             }
 
             return false;
+        }
+
+        private async Task UpdateMarginMode(string symbolName, decimal leverage)
+        {
+            //first switch to not active mode, otherwise the leverage will not be updated
+            WebCallResult marginUpdateResult;
+            if (_marginMode == MarginMode.Isolated)
+            {
+                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, leverage, leverage);
+                marginUpdateResult = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true, leverage, leverage);
+            }
+            else
+            {
+                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true, leverage, leverage);
+                marginUpdateResult = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, leverage, leverage);
+            }
+
+            if (!marginUpdateResult.Success)
+            {
+                Logger.Info($"Could not update leverage {marginUpdateResult.Error} - {symbolName}");
+                await TelegramBot.Instance.SendMessage($"Could not update leverage {marginUpdateResult.Error} - {symbolName}");
+            }
         }
 
         public async Task<bool> SymbolExists(string symbolName)
@@ -168,18 +254,19 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                             _symbols.Add(symbol.Key);
                             var entryPrice = symbol.Value.Average(o => o.Price);
                             var quantity = symbol.Value.Sum(o => o.Quantity);
+
+                            //remove order from timeouts
+                            if (_orderTimeouts.Any(o => o.Value.Key == symbol.Key))
+                            {
+                                _orderTimeouts.Remove(_orderTimeouts.First(o => o.Value.Key == symbol.Key).Key);
+                            }
+
                             OnOrderFilled?.Invoke(this, new OrderFilledEventArgs(symbol.Key, entryPrice, quantity));
                         }
                         else
                         {
-                            _symbols.Remove(symbol.Key);
                             var exitPrice = symbol.Value.Average(o => o.Price);
-                            OnPositionClosed?.Invoke(this, new PositionClosedEventArgs(symbol.Key, exitPrice));
-                            if (_symbolSubscriptions.TryGetValue(symbol.Key, out var id))
-                            {
-                                _socketClient.UnsubscribeAsync(id).GetAwaiter().GetResult();
-                                _symbolSubscriptions.Remove(symbol.Key);
-                            }
+                            ClosePosition(symbol.Key, exitPrice);
                         }
                     }
                 }
@@ -187,6 +274,17 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             finally
             {
                 _waitHandle.Release();
+            }
+        }
+
+        private void ClosePosition(string symbolName, decimal exitPrice)
+        {
+            _symbols.Remove(symbolName);
+            OnPositionClosed?.Invoke(this, new PositionClosedEventArgs(symbolName, exitPrice));
+            if (_symbolSubscriptions.TryGetValue(symbolName, out var id))
+            {
+                _socketClient.UnsubscribeAsync(id).GetAwaiter().GetResult();
+                _symbolSubscriptions.Remove(symbolName);
             }
         }
 

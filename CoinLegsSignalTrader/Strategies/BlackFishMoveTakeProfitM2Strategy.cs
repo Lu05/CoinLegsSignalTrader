@@ -53,7 +53,7 @@ namespace CoinLegsSignalTrader.Strategies
 
                 var amount =
                     CalculationHelper.CalculateAmount(_signal.RiskPerTrade, _notification.StopLoss, _notification.SignalPrice);
-                var order = await Exchange.PlaceOrderAsync(_notification.SymbolName, _notification.SignalPrice, _notification.Signal < 0, false, amount, _notification.StopLoss, _notification.Target5,
+                var order = await Exchange.PlaceOrderAsync(_notification.SymbolName, _notification.SignalPrice, _notification.Signal < 0, true, amount, _notification.StopLoss, _notification.Target5,
                     signal.Leverage);
                 if (!order)
                 {

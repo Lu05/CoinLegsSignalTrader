@@ -57,6 +57,7 @@ namespace CoinLegsSignalTrader
             {
                 Logger.Debug($"Executing {JsonSerializer.Serialize(signal)}");
                 if (signal.Type == notification.Type && signal.SignalTypeId == notification.SignalTypeId)
+                {
                     if (_exchanges.TryGetValue(signal.Exchange, out var exchange))
                     {
                         Logger.Info($"Found exchange {signal.Exchange} - {notification.SymbolName}");
@@ -79,6 +80,7 @@ namespace CoinLegsSignalTrader
                             await TelegramBot.Instance.SendMessage($"No strategy found for {signal.Strategy}");
                         }
                     }
+                }
             }
         }
 
@@ -122,6 +124,8 @@ namespace CoinLegsSignalTrader
                 return new BlackFishMoveTakeProfitM2Strategy();
             if (strategyName == MarketPlaceFixedTakeProfitStrategy.Name)
                 return new MarketPlaceFixedTakeProfitStrategy();
+            if (strategyName == MarketPlaceTrailingStopLossStrategy.Name)
+                return new MarketPlaceTrailingStopLossStrategy();
             return null;
         }
 
