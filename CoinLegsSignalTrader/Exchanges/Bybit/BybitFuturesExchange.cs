@@ -41,9 +41,11 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             _socketClient = new BybitSocketClient(new BybitSocketClientOptions
             {
                 ApiCredentials = new ApiCredentials(config.ApiKey, config.SecretKey),
-                UsdPerpetualStreamsOptions = new BybitSocketApiClientOptions(
-                    config.SocketPublicBaseAddress,
-                    config.SocketPrivateBaseAddress),
+                UsdPerpetualStreamsOptions = new BybitSocketApiClientOptions
+                {
+                    BaseAddress = config.SocketPublicBaseAddress,
+                    BaseAddressAuthenticated = config.SocketPrivateBaseAddress
+                },
                 AutoReconnect = true
             });
 

@@ -10,8 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Bybit.Net" Version="0.0.1-beta10" />
-    <PackageReference Include="NLog" Version="4.7.13" />
+    <PackageReference Include="Bybit.Net" Version="0.0.2" />
+    <PackageReference Include="NLog" Version="4.7.14" />
     <PackageReference Include="Telegram.Bot" Version="17.0.0" />
     <PackageReference Include="Telegram.Bot.Extensions.Polling" Version="1.0.2" />
   </ItemGroup>
