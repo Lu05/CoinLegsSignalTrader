@@ -22,14 +22,14 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
         private readonly BybitClient _client;
+        private readonly MarginMode _marginMode;
+        private readonly int _maxPositions;
+        private readonly int _orderTimeout;
+        private readonly Dictionary<string, KeyValuePair<string, DateTime>> _orderTimeouts = new();
         private readonly BybitSocketClient _socketClient;
         private readonly List<string> _symbols = new();
         private readonly Dictionary<string, int> _symbolSubscriptions = new();
         private readonly SemaphoreSlim _waitHandle = new(1, 1);
-        private readonly int _maxPositions;
-        private readonly int _orderTimeout;
-        private readonly Dictionary<string, KeyValuePair<string, DateTime>> _orderTimeouts = new();
-        private readonly MarginMode _marginMode;
 
         public BybitFuturesExchange(BybitFuturesExchangeConfig config)
         {
@@ -65,42 +65,6 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             orderTimeoutTimer.Start();
         }
 
-        private void OrderTimeoutOnElapsed(object sender, ElapsedEventArgs e)
-        {
-            _waitHandle.Wait(5000);
-            try
-            {
-                var keys = _orderTimeouts.Keys.ToList();
-                foreach (var orderId in keys)
-                {
-                    var order = _client.UsdPerpetualApi.Trading.GetOrdersAsync(_orderTimeouts[orderId].Key, orderId).Result;
-                    if (order.Success)
-                    {
-                        if (order.Data.Data.Any() && DateTime.Now > _orderTimeouts[orderId].Value)
-                        {
-                            var cancled = _client.UsdPerpetualApi.Trading.CancelOrderAsync(_orderTimeouts[orderId].Key, orderId).Result;
-                            if (!cancled.Success)
-                            {
-                                Logger.Error($"Failed on cancel order {cancled.Error}");
-                            }
-                            else
-                            {
-                                _orderTimeouts.Remove(orderId);
-                            }
-                        }
-                        else if (!order.Data.Data.Any())
-                        {
-                            _orderTimeouts.Remove(orderId);
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                _waitHandle.Release();
-            }
-        }
-
         public static string Name => "BybitFutures";
 
         public async Task<bool> PlaceOrderAsync(string symbolName, decimal signalPrice, bool isShort, bool isLimitOrder, decimal amount, decimal stopLoss, decimal takeProfit, decimal leverage)
@@ -127,15 +91,17 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                 var side = isShort ? OrderSide.Sell : OrderSide.Buy;
                 var orderType = isLimitOrder ? OrderType.Limit : OrderType.Market;
 
-                decimal triggerPrice = CalculationHelper.GetTriggerPrice(signalPrice, isShort);
-
-                var order = await _client.UsdPerpetualApi.Trading.PlaceConditionalOrderAsync(symbolName, side,
-                    orderType, amount, signalPrice, triggerPrice, TimeInForce.GoodTillCanceled, false, false, signalPrice,
-                    TriggerType.LastPrice, null, takeProfit, stopLoss, TriggerType.LastPrice, TriggerType.LastPrice);
+                var order = await _client.UsdPerpetualApi.Trading.PlaceOrderAsync(symbolName, side,
+                    orderType, amount, TimeInForce.GoodTillCanceled, false, false, signalPrice,
+                    null, takeProfit, stopLoss, TriggerType.LastPrice, TriggerType.LastPrice);
 
                 if (order.Success)
                 {
                     Logger.Debug($"Order placed {JsonConvert.SerializeObject(order)}");
+
+                    Logger.Info($"Order successfully placed for {symbolName} at {signalPrice}!");
+                    await TelegramBot.Instance.SendMessage($"Order successfully placed for {symbolName} at {signalPrice}!");
+
                     if (_orderTimeout > 0)
                     {
                         _orderTimeouts.Add(order.Data.Id, new KeyValuePair<string, DateTime>(symbolName, DateTime.Now.AddSeconds(_orderTimeout)));
@@ -153,6 +119,12 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                     }
 
                     Logger.Error($"Failed on subscription {subscription.Error} - {symbolName}");
+                    var cancled = await _client.UsdPerpetualApi.Trading.CancelOrderAsync(symbolName, order.Data.Id);
+                    if (!cancled.Success)
+                    {
+                        Logger.Info($"Could not cancel order for {symbolName}");
+                        await TelegramBot.Instance.SendMessage($"Could not cancel order for {symbolName}");
+                    }
                 }
                 else
                 {
@@ -167,28 +139,6 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             }
 
             return false;
-        }
-
-        private async Task UpdateMarginMode(string symbolName, decimal leverage)
-        {
-            //first switch to not active mode, otherwise the leverage will not be updated
-            WebCallResult marginUpdateResult;
-            if (_marginMode == MarginMode.Isolated)
-            {
-                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, leverage, leverage);
-                marginUpdateResult = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true, leverage, leverage);
-            }
-            else
-            {
-                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true, leverage, leverage);
-                marginUpdateResult = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, leverage, leverage);
-            }
-
-            if (!marginUpdateResult.Success)
-            {
-                Logger.Info($"Could not update leverage {marginUpdateResult.Error} - {symbolName}");
-                await TelegramBot.Instance.SendMessage($"Could not update leverage {marginUpdateResult.Error} - {symbolName}");
-            }
         }
 
         public async Task<bool> SymbolExists(string symbolName)
@@ -237,6 +187,64 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
         public event EventHandler<OrderFilledEventArgs> OnOrderFilled;
         public event EventHandler<PositionClosedEventArgs> OnPositionClosed;
         public event EventHandler<TickerUpdateEventArgs> OnTickerChanged;
+
+        private void OrderTimeoutOnElapsed(object sender, ElapsedEventArgs e)
+        {
+            _waitHandle.Wait(5000);
+            try
+            {
+                var keys = _orderTimeouts.Keys.ToList();
+                foreach (var orderId in keys)
+                {
+                    var order = _client.UsdPerpetualApi.Trading.GetOrdersAsync(_orderTimeouts[orderId].Key, orderId).Result;
+                    if (order.Success)
+                    {
+                        if (order.Data.Data.Any() && DateTime.Now > _orderTimeouts[orderId].Value)
+                        {
+                            var cancled = _client.UsdPerpetualApi.Trading.CancelOrderAsync(_orderTimeouts[orderId].Key, orderId).Result;
+                            if (!cancled.Success)
+                            {
+                                Logger.Error($"Failed on cancel order {cancled.Error}");
+                            }
+                            else
+                            {
+                                _orderTimeouts.Remove(orderId);
+                            }
+                        }
+                        else if (!order.Data.Data.Any())
+                        {
+                            _orderTimeouts.Remove(orderId);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _waitHandle.Release();
+            }
+        }
+
+        private async Task UpdateMarginMode(string symbolName, decimal leverage)
+        {
+            //first switch to not active mode, otherwise the leverage will not be updated
+            WebCallResult marginUpdateResult;
+            if (_marginMode == MarginMode.Isolated)
+            {
+                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, leverage, leverage);
+                marginUpdateResult = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true, leverage, leverage);
+            }
+            else
+            {
+                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true, leverage, leverage);
+                marginUpdateResult = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, leverage, leverage);
+            }
+
+            if (!marginUpdateResult.Success)
+            {
+                Logger.Info($"Could not update leverage {marginUpdateResult.Error} - {symbolName}");
+                await TelegramBot.Instance.SendMessage($"Could not update leverage {marginUpdateResult.Error} - {symbolName}");
+            }
+        }
 
         private void TradeUpdates(DataEvent<IEnumerable<BybitUserTradeUpdate>> obj)
         {
