@@ -210,11 +210,13 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                             }
                             else
                             {
+                                _symbols.Remove(_orderTimeouts[orderId].Key);
                                 _orderTimeouts.Remove(orderId);
                             }
                         }
                         else if (!order.Data.Data.Any())
                         {
+                                       _symbols.Remove(_orderTimeouts[orderId].Key);
                             _orderTimeouts.Remove(orderId);
                         }
                     }

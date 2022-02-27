@@ -28,7 +28,8 @@ namespace CoinLegsSignalTrader
                     Logger.Debug($"Adding {BybitFuturesExchange.Name} exchange");
                     var exchangeConfig = new BybitFuturesExchangeConfig();
                     configuration.Bind(exchangeConfig);
-                    _exchanges.Add(BybitFuturesExchange.Name, new BybitFuturesExchange(exchangeConfig));
+                    var exchange = new BybitFuturesExchange(exchangeConfig);
+                    _exchanges.Add(BybitFuturesExchange.Name, exchange);
                 }
             }
 
@@ -39,7 +40,7 @@ namespace CoinLegsSignalTrader
                 _signals.Add(signal);
             }
         }
-
+        
         public async Task Execute(INotification notification)
         {
             if (_signals.Count == 0)

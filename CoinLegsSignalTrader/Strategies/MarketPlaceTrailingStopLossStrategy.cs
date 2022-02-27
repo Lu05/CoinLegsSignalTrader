@@ -161,9 +161,11 @@ namespace CoinLegsSignalTrader.Strategies
                     if(!_isTrailingActive)
                         return;
                     var sl = e.LastPrice + e.LastPrice * _signal.TrailingOffset;
-                    if (_position.LastLoss > sl)
+                    var digits = CalculationHelper.GetDigits(_notification.SignalPrice);
+                    var slRound = Math.Round(sl, digits);
+                    if (_position.LastLoss > slRound)
                     {
-                        stopLoss = sl;
+                        stopLoss = slRound;
                         needsUpdate = true;
                     }
                 }
@@ -181,9 +183,11 @@ namespace CoinLegsSignalTrader.Strategies
                     if(!_isTrailingActive)
                         return;
                     var sl = e.LastPrice + e.LastPrice * _signal.TrailingOffset;
-                    if (_position.LastLoss < sl)
+                    var digits = CalculationHelper.GetDigits(_notification.SignalPrice);
+                    var slRound = Math.Round(sl, digits);
+                    if (_position.LastLoss < slRound)
                     {
-                        stopLoss = sl;
+                        stopLoss = slRound;
                         needsUpdate = true;
                     }
                 }
