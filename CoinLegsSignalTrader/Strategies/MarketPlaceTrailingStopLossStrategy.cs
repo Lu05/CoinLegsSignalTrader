@@ -154,7 +154,8 @@ namespace CoinLegsSignalTrader.Strategies
                         var offset = 1 - e.LastPrice / _position.EntryPrice;
                         if (offset > _signal.TrailingStartOffset)
                         {
-                            Logger.Debug($"Enabled trailing for {SymbolName} at {e.LastPrice}");
+                            Logger.Info($"Enabled trailing for {SymbolName} at {e.LastPrice}");
+                            TelegramBot.Instance.SendMessage($"Enabled trailing for {SymbolName} at {e.LastPrice}");
                             _isTrailingActive = true;
                         }
                     }
@@ -176,13 +177,14 @@ namespace CoinLegsSignalTrader.Strategies
                         var offset = e.LastPrice / _position.EntryPrice - 1;
                         if (offset > _signal.TrailingStartOffset)
                         {
-                            Logger.Debug($"Enabled trailing for {SymbolName} at {e.LastPrice}");
+                            Logger.Info($"Enabled trailing for {SymbolName} at {e.LastPrice}");
+                            TelegramBot.Instance.SendMessage($"Enabled trailing for {SymbolName} at {e.LastPrice}");
                             _isTrailingActive = true;
                         }
                     }
                     if(!_isTrailingActive)
                         return;
-                    var sl = e.LastPrice + e.LastPrice * _signal.TrailingOffset;
+                    var sl = e.LastPrice - e.LastPrice * _signal.TrailingOffset;
                     var digits = CalculationHelper.GetDigits(_notification.SignalPrice);
                     var slRound = Math.Round(sl, digits);
                     if (_position.LastLoss < slRound)
@@ -196,8 +198,7 @@ namespace CoinLegsSignalTrader.Strategies
                     _position.LastLoss = stopLoss;
                     Exchange.SetStopLoss(_position.Notification.SymbolName, _position.IsShort, stopLoss);
                     var message = $"Stop loss updated for {_notification.SymbolName} to {stopLoss}";
-                    Logger.Info(message);
-                    TelegramBot.Instance.SendMessage(message).GetAwaiter().GetResult();
+                    Logger.Debug(message);
                 }
             }
             finally
@@ -208,11 +209,17 @@ namespace CoinLegsSignalTrader.Strategies
 
         private void ExchangeOrderFilled(object sender, OrderFilledEventArgs e)
         {
+            if(e.SymbolName != SymbolName)
+                return;
+
             _waitHandle.Wait(5000);
             try
             {
                 if (_position != null)
+                {
+                    _position.Quantity += e.Quantity;
                     return;
+                }
 
                 var message = $"Position created for {_notification.SymbolName}, entry {Math.Round(e.EntryPrice, _notification.Decimals)}";
                 Logger.Info(message);

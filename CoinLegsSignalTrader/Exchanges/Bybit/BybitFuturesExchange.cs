@@ -201,22 +201,31 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                     var order = _client.UsdPerpetualApi.Trading.GetOrdersAsync(_orderTimeouts[orderId].Key, orderId).Result;
                     if (order.Success)
                     {
-                        if (order.Data.Data.Any() && DateTime.Now > _orderTimeouts[orderId].Value)
+                        var orderItem = order.Data.Data.FirstOrDefault();
+
+                        if (orderItem != null && orderItem.Status != OrderStatus.Canceled && orderItem.Status != OrderStatus.Filled && DateTime.Now > _orderTimeouts[orderId].Value)
                         {
                             var cancled = _client.UsdPerpetualApi.Trading.CancelOrderAsync(_orderTimeouts[orderId].Key, orderId).Result;
+                            //only remove from symbols if no position has been created
+                            bool needSymbolRemove = orderItem.Status != OrderStatus.PartiallyFilled && orderItem.Status != OrderStatus.Filled;
                             if (!cancled.Success)
                             {
                                 Logger.Error($"Failed on cancel order {cancled.Error}");
                             }
                             else
                             {
-                                _symbols.Remove(_orderTimeouts[orderId].Key);
+                                if(needSymbolRemove && _symbolSubscriptions.ContainsKey(_orderTimeouts[orderId].Key))
+                                {
+                                    _symbols.Remove(_orderTimeouts[orderId].Key);
+                                }
                                 _orderTimeouts.Remove(orderId);
+                                Logger.Info($"Order {_orderTimeouts[orderId].Key} cancled");
+                                TelegramBot.Instance.SendMessage($"Order {_orderTimeouts[orderId].Key} cancled");
                             }
                         }
-                        else if (!order.Data.Data.Any())
+                        else 
                         {
-                                       _symbols.Remove(_orderTimeouts[orderId].Key);
+                            _symbols.Remove(_orderTimeouts[orderId].Key);
                             _orderTimeouts.Remove(orderId);
                         }
                     }
@@ -258,28 +267,25 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                 var symbols = obj.Data.GroupBy(d => d.Symbol).ToDictionary(d => d.Key, d => d.ToList());
                 foreach (var symbol in symbols)
                 {
-                    if (symbol.Value.Any(d => d.QuantityRemaining == 0))
+                    var positions = _client.UsdPerpetualApi.Account.GetPositionAsync(symbol.Key).GetAwaiter().GetResult();
+                    bool isOpen = positions.Data.Sum(d => d.Quantity) > 0;
+
+
+                    if (isOpen)
                     {
-                        Logger.Debug($"Symbol {symbol.Key} has quantity 0!");
                         if (!_symbols.Contains(symbol.Key))
                         {
                             _symbols.Add(symbol.Key);
-                            var entryPrice = symbol.Value.Average(o => o.Price);
-                            var quantity = symbol.Value.Sum(o => o.Quantity);
-
-                            //remove order from timeouts
-                            if (_orderTimeouts.Any(o => o.Value.Key == symbol.Key))
-                            {
-                                _orderTimeouts.Remove(_orderTimeouts.First(o => o.Value.Key == symbol.Key).Key);
-                            }
-
-                            OnOrderFilled?.Invoke(this, new OrderFilledEventArgs(symbol.Key, entryPrice, quantity));
                         }
-                        else
-                        {
-                            var exitPrice = symbol.Value.Average(o => o.Price);
-                            ClosePosition(symbol.Key, exitPrice);
-                        }
+                        var entryPrice = symbol.Value.Average(o => o.Price);
+                        var quantity = symbol.Value.Sum(o => o.Quantity);
+
+                        OnOrderFilled?.Invoke(this, new OrderFilledEventArgs(symbol.Key, entryPrice, quantity));
+                    }
+                    else
+                    {
+                        var exitPrice = symbol.Value.Average(o => o.Price);
+                        ClosePosition(symbol.Key, exitPrice);
                     }
                 }
             }

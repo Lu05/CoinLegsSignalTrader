@@ -195,7 +195,10 @@ namespace CoinLegsSignalTrader.Strategies
             try
             {
                 if (_position != null)
+                {
+                    _position.Quantity += e.Quantity;
                     return;
+                }
 
                 var message = $"Position created for {_notification.SymbolName}, entry {Math.Round(e.EntryPrice, _notification.Decimals)}";
                 Logger.Info(message);
