@@ -198,14 +198,14 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                 var keys = _orderTimeouts.Keys.ToList();
                 foreach (var orderId in keys)
                 {
-                    var order = _client.UsdPerpetualApi.Trading.GetOrdersAsync(_orderTimeouts[orderId].Key, orderId).Result;
+                    var order = _client.UsdPerpetualApi.Trading.GetOrdersAsync(_orderTimeouts[orderId].Key, orderId).GetAwaiter().GetResult();
                     if (order.Success)
                     {
                         var orderItem = order.Data.Data.FirstOrDefault();
 
                         if (orderItem != null && orderItem.Status != OrderStatus.Canceled && orderItem.Status != OrderStatus.Filled && DateTime.Now > _orderTimeouts[orderId].Value)
                         {
-                            var cancled = _client.UsdPerpetualApi.Trading.CancelOrderAsync(_orderTimeouts[orderId].Key, orderId).Result;
+                            var cancled = _client.UsdPerpetualApi.Trading.CancelOrderAsync(_orderTimeouts[orderId].Key, orderId).GetAwaiter().GetResult();
                             //only remove from symbols if no position has been created
                             bool needSymbolRemove = orderItem.Status != OrderStatus.PartiallyFilled && orderItem.Status != OrderStatus.Filled;
                             if (!cancled.Success)
@@ -222,11 +222,6 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                                 Logger.Info($"Order {_orderTimeouts[orderId].Key} cancled");
                                 TelegramBot.Instance.SendMessage($"Order {_orderTimeouts[orderId].Key} cancled");
                             }
-                        }
-                        else 
-                        {
-                            _symbols.Remove(_orderTimeouts[orderId].Key);
-                            _orderTimeouts.Remove(orderId);
                         }
                     }
                 }
