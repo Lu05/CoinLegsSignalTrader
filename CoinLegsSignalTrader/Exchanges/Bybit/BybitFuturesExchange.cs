@@ -7,6 +7,7 @@ using CoinLegsSignalTrader.Enums;
 using CoinLegsSignalTrader.EventArgs;
 using CoinLegsSignalTrader.Helpers;
 using CoinLegsSignalTrader.Interfaces;
+using CoinLegsSignalTrader.Model;
 using CoinLegsSignalTrader.Telegram;
 using CryptoExchange.Net.Authentication;
 using CryptoExchange.Net.Objects;
@@ -25,7 +26,7 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
         private readonly MarginMode _marginMode;
         private readonly int _maxPositions;
         private readonly int _orderTimeout;
-        private readonly Dictionary<string, KeyValuePair<string, DateTime>> _orderTimeouts = new();
+        private readonly List<Order> _orderTimeouts = new();
         private readonly BybitSocketClient _socketClient;
         private readonly List<string> _symbols = new();
         private readonly Dictionary<string, int> _symbolSubscriptions = new();
@@ -106,7 +107,12 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
 
                     if (_orderTimeout > 0)
                     {
-                        _orderTimeouts.Add(order.Data.Id, new KeyValuePair<string, DateTime>(symbolName, DateTime.Now.AddSeconds(_orderTimeout)));
+                        _orderTimeouts.Add(new Order
+                        {
+                            Id = order.Data.Id,
+                            Symbol = symbolName,
+                            Timeout = DateTime.Now.AddSeconds(_orderTimeout)
+                        });
                     }
 
                     var subscription = await
@@ -195,17 +201,16 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             _waitHandle.Wait(5000);
             try
             {
-                var keys = _orderTimeouts.Keys.ToList();
-                foreach (var orderId in keys)
+                foreach (var timeoutOrder in _orderTimeouts.ToList())
                 {
-                    var order = _client.UsdPerpetualApi.Trading.GetOrdersAsync(_orderTimeouts[orderId].Key, orderId).GetAwaiter().GetResult();
+                    var order = _client.UsdPerpetualApi.Trading.GetOrdersAsync(timeoutOrder.Symbol, timeoutOrder.Id).GetAwaiter().GetResult();
                     if (order.Success)
                     {
                         var orderItem = order.Data.Data.FirstOrDefault();
 
-                        if (orderItem != null && DateTime.Now > _orderTimeouts[orderId].Value)
+                        if (orderItem != null && DateTime.Now > timeoutOrder.Timeout)
                         {
-                            var cancled = _client.UsdPerpetualApi.Trading.CancelOrderAsync(_orderTimeouts[orderId].Key, orderId).GetAwaiter().GetResult();
+                            var cancled = _client.UsdPerpetualApi.Trading.CancelOrderAsync(timeoutOrder.Symbol, timeoutOrder.Id).GetAwaiter().GetResult();
                             if (!cancled.Success)
                             {
                                 Logger.Debug(cancled.Error);
@@ -213,14 +218,19 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
 
                             //only remove from symbols if no position has been created
                             bool needSymbolRemove = orderItem.Status != OrderStatus.PartiallyFilled && orderItem.Status != OrderStatus.Filled;
-                            if (needSymbolRemove && _symbolSubscriptions.ContainsKey(_orderTimeouts[orderId].Key))
+                            if (needSymbolRemove && _symbols.Contains(timeoutOrder.Symbol))
                             {
-                                _symbols.Remove(_orderTimeouts[orderId].Key);
+                                _symbols.Remove(timeoutOrder.Symbol);
+                                if (_symbolSubscriptions.TryGetValue(timeoutOrder.Symbol, out var id))
+                                {
+                                    _socketClient.UnsubscribeAsync(id).GetAwaiter().GetResult();
+                                    _symbolSubscriptions.Remove(timeoutOrder.Symbol);
+                                }
                             }
 
-                            _orderTimeouts.Remove(orderId);
-                            Logger.Info($"Order {_orderTimeouts[orderId].Key} cancled");
-                            TelegramBot.Instance.SendMessage($"Order {_orderTimeouts[orderId].Key} cancled");
+                            _orderTimeouts.Remove(timeoutOrder);
+                            Logger.Info($"Order {timeoutOrder.Symbol} cancled");
+                            TelegramBot.Instance.SendMessage($"Order {timeoutOrder.Symbol} cancled");
                         }
                     }
                 }
@@ -298,6 +308,13 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             {
                 _socketClient.UnsubscribeAsync(id).GetAwaiter().GetResult();
                 _symbolSubscriptions.Remove(symbolName);
+            }
+
+            var orderTimeout = _orderTimeouts.FirstOrDefault(o => o.Symbol == symbolName);
+            if (orderTimeout != null)
+            {
+                _client.UsdPerpetualApi.Trading.CancelOrderAsync(orderTimeout.Symbol, orderTimeout.Id).GetAwaiter().GetResult();
+                _orderTimeouts.Remove(orderTimeout);
             }
         }
 
