@@ -203,25 +203,24 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                     {
                         var orderItem = order.Data.Data.FirstOrDefault();
 
-                        if (orderItem != null && orderItem.Status != OrderStatus.Canceled && orderItem.Status != OrderStatus.Filled && DateTime.Now > _orderTimeouts[orderId].Value)
+                        if (orderItem != null && DateTime.Now > _orderTimeouts[orderId].Value)
                         {
                             var cancled = _client.UsdPerpetualApi.Trading.CancelOrderAsync(_orderTimeouts[orderId].Key, orderId).GetAwaiter().GetResult();
-                            //only remove from symbols if no position has been created
-                            bool needSymbolRemove = orderItem.Status != OrderStatus.PartiallyFilled && orderItem.Status != OrderStatus.Filled;
                             if (!cancled.Success)
                             {
-                                Logger.Error($"Failed on cancel order {cancled.Error}");
+                                Logger.Debug(cancled.Error);
                             }
-                            else
+
+                            //only remove from symbols if no position has been created
+                            bool needSymbolRemove = orderItem.Status != OrderStatus.PartiallyFilled && orderItem.Status != OrderStatus.Filled;
+                            if (needSymbolRemove && _symbolSubscriptions.ContainsKey(_orderTimeouts[orderId].Key))
                             {
-                                if(needSymbolRemove && _symbolSubscriptions.ContainsKey(_orderTimeouts[orderId].Key))
-                                {
-                                    _symbols.Remove(_orderTimeouts[orderId].Key);
-                                }
-                                _orderTimeouts.Remove(orderId);
-                                Logger.Info($"Order {_orderTimeouts[orderId].Key} cancled");
-                                TelegramBot.Instance.SendMessage($"Order {_orderTimeouts[orderId].Key} cancled");
+                                _symbols.Remove(_orderTimeouts[orderId].Key);
                             }
+
+                            _orderTimeouts.Remove(orderId);
+                            Logger.Info($"Order {_orderTimeouts[orderId].Key} cancled");
+                            TelegramBot.Instance.SendMessage($"Order {_orderTimeouts[orderId].Key} cancled");
                         }
                     }
                 }
@@ -272,6 +271,7 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                         {
                             _symbols.Add(symbol.Key);
                         }
+
                         var entryPrice = symbol.Value.Average(o => o.Price);
                         var quantity = symbol.Value.Sum(o => o.Quantity);
 
