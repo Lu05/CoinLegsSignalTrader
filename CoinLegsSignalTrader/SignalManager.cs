@@ -110,8 +110,15 @@ namespace CoinLegsSignalTrader
                     var result = new List<string>();
                     foreach (var strategy in _strategies)
                     {
-                        var pnl = strategy.Value.Exchange.GetUnrealizedPnlForSymbol(strategy.Value.SymbolName).GetAwaiter().GetResult();
-                        result.Add($"{strategy.Value.SymbolName} -> {Math.Round(pnl, 2)}$");
+                        var data = strategy.Value.Exchange.GetUnrealizedPnlForSymbol(strategy.Value.SymbolName).GetAwaiter().GetResult();
+                        if(data.IsValid)
+                        {
+                            result.Add($"{strategy.Value.SymbolName} -> PnL={Math.Round(data.UnrealizedPnL, 2)}$, Margin={Math.Round(data.Margin, 2)}$");
+                        }
+                        else
+                        {
+                            result.Add($"{strategy.Value.SymbolName} -> Unknown");
+                        }
                     }
 
                     TelegramBot.Instance.SendMessage(string.Join(Environment.NewLine, result));

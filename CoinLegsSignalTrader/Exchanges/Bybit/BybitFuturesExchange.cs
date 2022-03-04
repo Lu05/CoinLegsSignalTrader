@@ -181,15 +181,25 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             }
         }
 
-        public async Task<decimal> GetUnrealizedPnlForSymbol(string symbolName)
+        public async Task<ExchangePositionData> GetUnrealizedPnlForSymbol(string symbolName)
         {
             var position = await _client.UsdPerpetualApi.Account.GetPositionAsync(symbolName);
             if (position.Success && position.Data.Any())
             {
-                return position.Data.Sum(p => p.UnrealizedPnl);
+                var openPositions = position.Data.Where(p => p.Quantity > 0).ToList();
+                return new ExchangePositionData
+                {
+                    UnrealizedPnL = openPositions.Sum(p => p.UnrealizedPnl),
+                    Quantity = openPositions.Sum(p => p.Quantity),
+                    Margin = openPositions.Sum(p => p.PositionMargin),
+                    IsValid = true
+                };
             }
 
-            return 0;
+            return new ExchangePositionData
+            {
+                IsValid = false
+            };
         }
 
         public event EventHandler<OrderFilledEventArgs> OnOrderFilled;
@@ -215,22 +225,26 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                             {
                                 Logger.Debug(cancled.Error);
                             }
-
+                            
                             //only remove from symbols if no position has been created
                             bool needSymbolRemove = orderItem.Status != OrderStatus.PartiallyFilled && orderItem.Status != OrderStatus.Filled;
-                            if (needSymbolRemove && _symbols.Contains(timeoutOrder.Symbol))
+                            if (needSymbolRemove)
                             {
-                                _symbols.Remove(timeoutOrder.Symbol);
-                                if (_symbolSubscriptions.TryGetValue(timeoutOrder.Symbol, out var id))
-                                {
-                                    _socketClient.UnsubscribeAsync(id).GetAwaiter().GetResult();
-                                    _symbolSubscriptions.Remove(timeoutOrder.Symbol);
+                                Logger.Debug($"Position closed because order timeout {timeoutOrder.Symbol}");
+                                ClosePosition(timeoutOrder.Symbol, 0, PositionClosedReason.PositionCancled);
+                            }
+                            else
+                            {
+                                _orderTimeouts.Remove(timeoutOrder);
+                                var remaining = orderItem.Quantity - orderItem.QuoteQuantityFilled;
+                                //Only send a notification if there was remaining quantity
+                                if(remaining > 0.1M)
+                                {  
+                                    var msg = $"Order {timeoutOrder.Symbol} cancled - remaining {remaining} of {orderItem.Quantity}";
+                                    Logger.Info(msg);
+                                    TelegramBot.Instance.SendMessage(msg);
                                 }
                             }
-
-                            _orderTimeouts.Remove(timeoutOrder);
-                            Logger.Info($"Order {timeoutOrder.Symbol} cancled");
-                            TelegramBot.Instance.SendMessage($"Order {timeoutOrder.Symbol} cancled");
                         }
                     }
                 }
@@ -290,7 +304,7 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                     else
                     {
                         var exitPrice = symbol.Value.Average(o => o.Price);
-                        ClosePosition(symbol.Key, exitPrice);
+                        ClosePosition(symbol.Key, exitPrice, PositionClosedReason.PositionClosedSell);
                     }
                 }
             }
@@ -300,10 +314,10 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             }
         }
 
-        private void ClosePosition(string symbolName, decimal exitPrice)
+        private void ClosePosition(string symbolName, decimal exitPrice, PositionClosedReason reason)
         {
             _symbols.Remove(symbolName);
-            OnPositionClosed?.Invoke(this, new PositionClosedEventArgs(symbolName, exitPrice));
+            OnPositionClosed?.Invoke(this, new PositionClosedEventArgs(symbolName, exitPrice, reason));
             if (_symbolSubscriptions.TryGetValue(symbolName, out var id))
             {
                 _socketClient.UnsubscribeAsync(id).GetAwaiter().GetResult();

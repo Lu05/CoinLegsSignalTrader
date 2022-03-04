@@ -1,4 +1,5 @@
-﻿using CoinLegsSignalTrader.EventArgs;
+﻿using CoinLegsSignalTrader.Enums;
+using CoinLegsSignalTrader.EventArgs;
 using CoinLegsSignalTrader.Helpers;
 using CoinLegsSignalTrader.Interfaces;
 using CoinLegsSignalTrader.Model;
@@ -87,22 +88,24 @@ namespace CoinLegsSignalTrader.Strategies
             _waitHandle.Wait(5000);
             try
             {
-                if (_position.Notification.SymbolName != e.SymbolName)
+                if (_notification.SymbolName != e.SymbolName)
                     return;
 
                 UnregisterExchangeEvents();
+                string message = string.Empty;
                 if (_position != null)
                 {
                     _position.ExitPrice = e.ExitPrice;
+                    message =
+                        $"Position closed for {_position.Notification.SymbolName}. Entry {Math.Round(_position.EntryPrice, _notification.Decimals)}, exit {Math.Round(_position.ExitPrice, _notification.Decimals)}, pnl {CalculationHelper.GetPnL(_position.Quantity, _position.EntryPrice, _position.ExitPrice, _position.IsShort)}";
+                }
+                else if (e.ClosedReason == PositionClosedReason.PositionCancled)
+                {
+                    message = $"Position cancled for {e.SymbolName} because of order timeout - was never opened!";
                 }
 
-                if (_position != null)
-                {
-                    var message =
-                        $"Position closed for {_position.Notification.SymbolName}. Entry {Math.Round(_position.EntryPrice, _notification.Decimals)}, exit {Math.Round(_position.ExitPrice, _notification.Decimals)}, pnl {CalculationHelper.GetPnL(_position.Quantity, _position.EntryPrice, _position.ExitPrice, _position.IsShort)}";
-                    Logger.Info(message);
-                    TelegramBot.Instance.SendMessage(message).GetAwaiter().GetResult();
-                }
+                Logger.Info(message);
+                TelegramBot.Instance.SendMessage(message).GetAwaiter().GetResult();
 
                 OnPositionClosed?.Invoke(this, e);
             }
