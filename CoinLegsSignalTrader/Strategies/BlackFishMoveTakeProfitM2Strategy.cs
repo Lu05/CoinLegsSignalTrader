@@ -21,6 +21,7 @@ namespace CoinLegsSignalTrader.Strategies
         private INotification _notification;
         private IPosition _position;
         private ISignal _signal;
+        private readonly TimeSpan _waitTimeout = TimeSpan.FromMinutes(1);
 
         public BlackFishMoveTakeProfitM2Strategy()
         {
@@ -31,7 +32,7 @@ namespace CoinLegsSignalTrader.Strategies
 
         public async Task<bool> Execute(IExchange exchange, INotification notification, ISignal signal)
         {
-            await _waitHandle.WaitAsync(5000);
+            await _waitHandle.WaitAsync(_waitTimeout);
             try
             {
                 _notification = notification;
@@ -85,7 +86,7 @@ namespace CoinLegsSignalTrader.Strategies
 
         private void ExchangeOnPositionClosed(object sender, PositionClosedEventArgs e)
         {
-            _waitHandle.Wait(5000);
+            _waitHandle.Wait(_waitTimeout);
             try
             {
                 if (_notification.SymbolName != e.SymbolName)
@@ -127,7 +128,7 @@ namespace CoinLegsSignalTrader.Strategies
             if (_position?.Notification.SymbolName != e.SymbolName)
                 return;
 
-            _waitHandle.Wait(5000);
+            _waitHandle.Wait(_waitTimeout);
             try
             {
                 Logger.Debug($"Ticker updated for {_notification.SymbolName} to {Math.Round(e.LastPrice, _notification.Decimals)}");
@@ -194,7 +195,7 @@ namespace CoinLegsSignalTrader.Strategies
 
         private void ExchangeOrderFilled(object sender, OrderFilledEventArgs e)
         {
-            _waitHandle.Wait(5000);
+            _waitHandle.Wait(_waitTimeout);
             try
             {
                 if (_position != null)

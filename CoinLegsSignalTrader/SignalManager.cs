@@ -16,10 +16,12 @@ namespace CoinLegsSignalTrader
         private readonly Dictionary<string, IExchange> _exchanges = new();
         private readonly List<ISignal> _signals = new();
         private readonly Dictionary<Guid, IStrategy> _strategies = new();
+        private int _maxPositions;
 
         public SignalManager(IConfiguration config)
         {
             TelegramBot.Instance.OnCommand += TelegramBotOnCommand;
+            _maxPositions = config.GetValue<int>("MaxPositions");
 
             foreach (var configuration in config.GetSection("Exchanges").GetChildren())
             {
@@ -47,11 +49,19 @@ namespace CoinLegsSignalTrader
             {
                 Logger.Info("No signals configured!");
                 await TelegramBot.Instance.SendMessage("No signals configured!");
+                return;
             }
             else if (_exchanges.Count == 0)
             {
                 Logger.Info("No exchanges configured!");
                 await TelegramBot.Instance.SendMessage("No exchanges configured!");
+                return;
+            }
+            else if (_strategies.Count >= _maxPositions)
+            {
+                Logger.Info($"Max positions reached {_maxPositions}!");
+                await TelegramBot.Instance.SendMessage($"Max positions reached {_maxPositions}!");
+                return;
             }
 
             foreach (var signal in _signals)
