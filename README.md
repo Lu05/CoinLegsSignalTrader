@@ -22,6 +22,11 @@ After that go to the folder you put the files and execute
 <br>
 to get the needed permissions. The app needs read/write permissions if you want logging. If you don't want to log, only read should be enough.
 
+### General properties
+| Property| Type|      Usage| 
+|:----------|:-------------|:-------------|
+Port | int | port on which the app will listen
+MaxPositions | int | max open positions at the same time
 ### Exchange
 After that go to the appsettings.json file.
 It should look like this:
