@@ -121,6 +121,8 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                 else
                 {
                     Logger.Error($"Order failed {order.Error} - {symbolName}");
+                    await _socketClient.UnsubscribeAsync(subscription.Data.Id);
+                    _symbolSubscriptions.Remove(symbolName);
                 }
             }
 
