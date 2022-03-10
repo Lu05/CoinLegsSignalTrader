@@ -22,7 +22,7 @@ After that go to the folder you put the files and execute
 <br>
 to get the needed permissions. The app needs read/write permissions if you want logging. If you don't want to log, only read should be enough.
 
-### General properties
+### General parameters
 | Property| Type|      Usage| 
 |:----------|:-------------|:-------------|
 Port | int | port on which the app will listen
@@ -72,11 +72,15 @@ At the first line you can configure the port to which the app should listen to. 
 Next you should configure the exchanges section.
 At the moment only ByBit is supported. Enter your API and secret key here. The urls are for testnet. If you want to go live you can find the urls needed [here](https://bybit-exchange.github.io/docs/inverse/#t-authentication).
 You will need both, rest and sockets for updates.
+
+#### Parameters
+
 | Property| Type|      Usage| 
 |:----------|:-------------|:-------------|
 MarginMode | sting | Isolated or Cross
 OrderTimeout | int | order timeout in seconds if the order is not filled
 MaxOpenPositions | int | max open position over all exchanges
+PositionTimeout | int | timeout in seconds when the position will be market closed
 ### Signals
 The next section is the singnals section. Here you should use whatever you like to execute at the exchange.
 #### Parameters
@@ -135,6 +139,13 @@ More complex strategy. Executes on signal and move the stop loss on price update
 If the price will hit TP(take profit) 2 SL(stop loss) will be set to break even, TP3 will update SL to TP1, TP4 will update SL to TP3 and if TP5 is hit the position will be closed. TakeProfitIndex is not taken into account here.
 
 ![image](https://user-images.githubusercontent.com/3795343/153482176-ab4cfc30-c6b9-427f-9430-d0df3d1c49a6.png)
+
+### MarketPlaceTrailingStopLossStrategy
+Simple trailing the stop loss. Starts at TrailingStartOffset and will keep the stop loss TrailingOffset away from the current price.
+
+### MarketPlaceCustomTakeProfitStrategy
+Simple strategy which takes the set take profit and stop loss into account.
+Thie difference to the MarketPlaceFixedTakeProfitStrategy is that at MarketPlaceFixedTakeProfitStrategy is always used from the signal and TakeProfitIndex have to be set.
 
 ## Support
 

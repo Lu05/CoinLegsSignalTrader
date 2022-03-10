@@ -16,7 +16,9 @@ namespace CoinLegsSignalTrader
         private readonly Dictionary<string, IExchange> _exchanges = new();
         private readonly List<ISignal> _signals = new();
         private readonly Dictionary<Guid, IStrategy> _strategies = new();
-        private int _maxPositions;
+        private readonly int _maxPositions;
+        private readonly SemaphoreSlim _waitHandle = new(1, 1);
+        private readonly TimeSpan _waitTimeout = TimeSpan.FromMinutes(1);
 
         public SignalManager(IConfiguration config)
         {
@@ -51,47 +53,58 @@ namespace CoinLegsSignalTrader
                 await TelegramBot.Instance.SendMessage("No signals configured!");
                 return;
             }
-            else if (_exchanges.Count == 0)
+
+            if (_exchanges.Count == 0)
             {
                 Logger.Info("No exchanges configured!");
                 await TelegramBot.Instance.SendMessage("No exchanges configured!");
                 return;
             }
-            else if (_strategies.Count >= _maxPositions)
+
+            if (_strategies.Count >= _maxPositions)
             {
                 Logger.Info($"Max positions reached {_maxPositions}!");
                 await TelegramBot.Instance.SendMessage($"Max positions reached {_maxPositions}!");
                 return;
             }
 
-            foreach (var signal in _signals)
+            await _waitHandle.WaitAsync(_waitTimeout);
+
+            try
             {
-                Logger.Debug($"Executing {JsonSerializer.Serialize(signal)}");
-                if (signal.Type == notification.Type && signal.SignalTypeId == notification.SignalTypeId)
+                foreach (var signal in _signals)
                 {
-                    if (_exchanges.TryGetValue(signal.Exchange, out var exchange))
+                    Logger.Debug($"Executing {JsonSerializer.Serialize(signal)}");
+                    if (signal.Type == notification.Type && signal.SignalTypeId == notification.SignalTypeId)
                     {
-                        Logger.Info($"Found exchange {signal.Exchange} - {notification.SymbolName}");
-                        await TelegramBot.Instance.SendMessage($"Found exchange {signal.Exchange} - {notification.SymbolName}");
-                        var strategy = GetStrategyByName(signal.Strategy);
-                        if (strategy != null)
+                        if (_exchanges.TryGetValue(signal.Exchange, out var exchange))
                         {
-                            Logger.Debug($"Strategy found {signal.Strategy} - {notification.SymbolName}");
-                            if (await strategy.Execute(exchange, notification, signal))
+                            Logger.Info($"Found exchange {signal.Exchange} - {notification.SymbolName}");
+                            await TelegramBot.Instance.SendMessage($"Found exchange {signal.Exchange} - {notification.SymbolName}");
+                            var strategy = GetStrategyByName(signal.Strategy);
+                            if (strategy != null)
                             {
-                                Logger.Debug($"Strategy executed {signal.Strategy} on {signal.Exchange} - {notification.SymbolName}");
-                                strategy.OnPositionClosed += SignalOnPositionClosed;
-                                _strategies.Add(strategy.Id, strategy);
-                                break;
+                                Logger.Debug($"Strategy found {signal.Strategy} - {notification.SymbolName}");
+                                if (await strategy.Execute(exchange, notification, signal))
+                                {
+                                    Logger.Debug($"Strategy executed {signal.Strategy} on {signal.Exchange} - {notification.SymbolName}");
+                                    strategy.OnPositionClosed += SignalOnPositionClosed;
+                                    _strategies.Add(strategy.Id, strategy);
+                                    break;
+                                }
                             }
-                        }
-                        else
-                        {
-                            Logger.Info($"No strategy found for {signal.Strategy}");
-                            await TelegramBot.Instance.SendMessage($"No strategy found for {signal.Strategy}");
+                            else
+                            {
+                                Logger.Info($"No strategy found for {signal.Strategy}");
+                                await TelegramBot.Instance.SendMessage($"No strategy found for {signal.Strategy}");
+                            }
                         }
                     }
                 }
+            }
+            finally
+            {
+                _waitHandle.Release();
             }
         }
 
@@ -144,6 +157,8 @@ namespace CoinLegsSignalTrader
                 return new MarketPlaceFixedTakeProfitStrategy();
             if (strategyName == MarketPlaceTrailingStopLossStrategy.Name)
                 return new MarketPlaceTrailingStopLossStrategy();
+            if (strategyName == MarketPlaceCustomTakeProfitStrategy.Name)
+                return new MarketPlaceCustomTakeProfitStrategy();
             return null;
         }
 

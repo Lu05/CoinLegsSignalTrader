@@ -9,7 +9,8 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
         public string RestApiBaseAddress { get; set; }
         public string SocketPublicBaseAddress { get; set; }
         public string SocketPrivateBaseAddress { get; set; }
-        public int OrderTimeOut { get; set; }
+        public int OrderTimeout { get; set; }
+        public int PositionTimeout { get; set; }
         public MarginMode MarginMode { get; set; }
     }
 }

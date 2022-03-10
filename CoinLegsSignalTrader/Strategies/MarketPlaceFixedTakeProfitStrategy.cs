@@ -138,6 +138,9 @@ namespace CoinLegsSignalTrader.Strategies
 
             try
             {
+                if(e.SymbolName != _notification.SymbolName)
+                    return;
+
                 if (_position != null)
                 {
                     _position.Quantity += e.Quantity;

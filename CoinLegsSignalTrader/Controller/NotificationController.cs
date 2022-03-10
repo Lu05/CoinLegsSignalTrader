@@ -22,23 +22,26 @@ namespace CoinLegsSignalTrader.Controller
         }
 
         [HttpPost("Listen")]
-        public async Task<IActionResult> Notify([FromBody] JsonObject content)
+        public IActionResult Notify([FromBody] JsonObject content)
         {
-            var legsNotification = content.Deserialize<CoinLegsNotification>();
-
-            if (legsNotification != null)
+            Task.Run(() =>
             {
-                Logger.Debug($"Notification received: {JsonSerializer.Serialize(legsNotification)}");
-                try
+                var legsNotification = content.Deserialize<CoinLegsNotification>();
+
+                if (legsNotification != null)
                 {
-                    var notification = new Notification(legsNotification);
-                    await _signalManager.Execute(notification);
+                    Logger.Debug($"Notification received: {JsonSerializer.Serialize(legsNotification)}");
+                    try
+                    {
+                        var notification = new Notification(legsNotification);
+                        _signalManager.Execute(notification).GetAwaiter().GetResult();
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.Error(e);
+                    }
                 }
-                catch (Exception e)
-                {
-                    Logger.Error(e);
-                }
-            }
+            });
 
             return Ok();
         }

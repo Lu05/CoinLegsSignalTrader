@@ -10,11 +10,9 @@ using ILogger = NLog.ILogger;
 namespace CoinLegsSignalTrader.Strategies
 {
     /// <summary>
-    ///     Strategy that moves take profit, starting with tp2
-    ///     Take profit will be moved to last TP hit - 2 for TP 2 and 3 and to TP hit - 1 for TP 4
-    ///     Position will be closed directly if TP5 is hit.
+    ///     Strategy with fixed take profit target based on the config file
     /// </summary>
-    public class BlackFishMoveTakeProfitM2Strategy : IStrategy
+    public class MarketPlaceCustomTakeProfitStrategy : IStrategy
     {
         private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
         private readonly SemaphoreSlim _waitHandle = new(1, 1);
@@ -23,12 +21,12 @@ namespace CoinLegsSignalTrader.Strategies
         private ISignal _signal;
         private readonly TimeSpan _waitTimeout = TimeSpan.FromMinutes(1);
 
-        public BlackFishMoveTakeProfitM2Strategy()
+        public MarketPlaceCustomTakeProfitStrategy()
         {
             Id = Guid.NewGuid();
         }
 
-        public static string Name => "BlackFishMoveTakeProfitM2Strategy";
+        public static string Name => "MarketPlaceCustomTakeProfitStrategy";
 
         public async Task<bool> Execute(IExchange exchange, INotification notification, ISignal signal)
         {
@@ -51,11 +49,24 @@ namespace CoinLegsSignalTrader.Strategies
                 var tickerDigits = await Exchange.GetSymbolDigits(_notification.SymbolName);
                 _notification.Round(tickerDigits);
 
+                decimal takeProfit;
+                decimal stopLoss;
+                if (_notification.Signal < 0)
+                {
+                    takeProfit = Math.Round(notification.SignalPrice - (notification.SignalPrice * signal.TakeProfit), tickerDigits);
+                    stopLoss = Math.Round(notification.SignalPrice + (notification.SignalPrice * signal.StopLoss), tickerDigits);
+                }
+                else
+                {
+                    takeProfit = Math.Round(notification.SignalPrice + (notification.SignalPrice * signal.TakeProfit), tickerDigits);
+                    stopLoss = Math.Round(notification.SignalPrice - (notification.SignalPrice * signal.StopLoss), tickerDigits);
+                }
+
                 RegisterExchangeEvents();
 
                 var amount =
-                    CalculationHelper.CalculateAmount(_signal.RiskPerTrade, _notification.StopLoss, _notification.SignalPrice);
-                var order = await Exchange.PlaceOrderAsync(_notification.SymbolName, _notification.SignalPrice, _notification.Signal < 0, true, amount, _notification.StopLoss, _notification.Target5,
+                    CalculationHelper.CalculateAmount(_signal.RiskPerTrade, stopLoss, _notification.SignalPrice);
+                var order = await Exchange.PlaceOrderAsync(_notification.SymbolName, _notification.SignalPrice, _notification.Signal < 0, true, amount, stopLoss, takeProfit,
                     signal.Leverage);
                 if (!order)
                 {
@@ -80,7 +91,6 @@ namespace CoinLegsSignalTrader.Strategies
         private void RegisterExchangeEvents()
         {
             Exchange.OnOrderFilled += ExchangeOrderFilled;
-            Exchange.OnTickerChanged += ExchangeOnTickerChanged;
             Exchange.OnPositionClosed += ExchangeOnPositionClosed;
         }
 
@@ -120,82 +130,12 @@ namespace CoinLegsSignalTrader.Strategies
         {
             Exchange.OnOrderFilled -= ExchangeOrderFilled;
             Exchange.OnPositionClosed -= ExchangeOnPositionClosed;
-            Exchange.OnTickerChanged -= ExchangeOnTickerChanged;
-        }
-
-        private void ExchangeOnTickerChanged(object sender, TickerUpdateEventArgs e)
-        {
-            if (_position?.Notification.SymbolName != e.SymbolName)
-                return;
-
-            _waitHandle.Wait(_waitTimeout);
-            try
-            {
-                Logger.Debug($"Ticker updated for {_notification.SymbolName} to {Math.Round(e.LastPrice, _notification.Decimals)}");
-
-                var needsUpdate = false;
-                decimal stopLoss = 0;
-                var lastPrice = e.LastPrice;
-                _position!.LastPrice = e.LastPrice;
-                if (_position.IsShort)
-                {
-                    if (lastPrice < _position.Notification.Target4)
-                    {
-                        stopLoss = _position.Notification.Target3;
-                        needsUpdate = true;
-                    }
-                    else if (lastPrice < _position.Notification.Target3)
-                    {
-                        stopLoss = _position.Notification.Target1;
-                        needsUpdate = true;
-                    }
-                    else if (lastPrice < _position.Notification.Target2)
-                    {
-                        stopLoss = _position.Notification.SignalPrice;
-                        needsUpdate = true;
-                    }
-
-                    if (needsUpdate && stopLoss >= _position.LastLoss) needsUpdate = false;
-                }
-                else
-                {
-                    if (lastPrice > _position.Notification.Target4)
-                    {
-                        stopLoss = _position.Notification.Target3;
-                        needsUpdate = true;
-                    }
-                    else if (lastPrice > _position.Notification.Target3)
-                    {
-                        stopLoss = _position.Notification.Target1;
-                        needsUpdate = true;
-                    }
-                    else if (lastPrice > _position.Notification.Target2)
-                    {
-                        stopLoss = _position.Notification.SignalPrice;
-                        needsUpdate = true;
-                    }
-
-                    if (needsUpdate && stopLoss <= _position.LastLoss) needsUpdate = false;
-                }
-
-                if (needsUpdate)
-                {
-                    _position.LastLoss = stopLoss;
-                    Exchange.SetStopLoss(_position.Notification.SymbolName, _position.IsShort, stopLoss);
-                    var message = $"Stop loss updated for {_notification.SymbolName} to {stopLoss}";
-                    Logger.Info(message);
-                    TelegramBot.Instance.SendMessage(message).GetAwaiter().GetResult();
-                }
-            }
-            finally
-            {
-                _waitHandle.Release();
-            }
         }
 
         private void ExchangeOrderFilled(object sender, OrderFilledEventArgs e)
         {
             _waitHandle.Wait(_waitTimeout);
+
             try
             {
                 if(e.SymbolName != _notification.SymbolName)

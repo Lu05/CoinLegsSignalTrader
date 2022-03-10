@@ -216,12 +216,12 @@ namespace CoinLegsSignalTrader.Strategies
 
         private void ExchangeOrderFilled(object sender, OrderFilledEventArgs e)
         {
-            if (e.SymbolName != SymbolName)
-                return;
-
             _waitHandle.Wait(_waitTimeout);
             try
             {
+                if (e.SymbolName != SymbolName)
+                    return;
+
                 if (_position != null)
                 {
                     _position.Quantity += e.Quantity;

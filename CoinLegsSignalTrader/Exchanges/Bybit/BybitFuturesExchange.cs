@@ -26,11 +26,13 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
         private readonly MarginMode _marginMode;
         private readonly int _orderTimeout;
         private readonly List<Order> _orderTimeouts = new();
+        private readonly Dictionary<string, DateTime> _positionTimeouts = new();
         private readonly BybitSocketClient _socketClient;
         private readonly List<string> _symbols = new();
         private readonly Dictionary<string, int> _symbolSubscriptions = new();
         private readonly SemaphoreSlim _waitHandle = new(1, 1);
         private readonly TimeSpan _waitTimeout = TimeSpan.FromMinutes(1);
+        private readonly int _positionTimeout;
 
         public BybitFuturesExchange(BybitFuturesExchangeConfig config)
         {
@@ -50,8 +52,9 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                 AutoReconnect = true
             });
 
-            _orderTimeout = config.OrderTimeOut;
+            _orderTimeout = config.OrderTimeout;
             _marginMode = config.MarginMode;
+            _positionTimeout = config.PositionTimeout;
 
             var subscription = _socketClient.UsdPerpetualStreams.SubscribeToUserTradeUpdatesAsync(TradeUpdates).GetAwaiter().GetResult();
             if (!subscription.Success)
@@ -59,12 +62,12 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                 Logger.Error($"Could not subscribe to UserTradeUpdates {subscription.Error} - software is not working, please restart!");
             }
 
-            var orderTimeoutTimer = new Timer(TimeSpan.FromMinutes(1).TotalMilliseconds)
+            var timeoutTimer = new Timer(TimeSpan.FromMinutes(1).TotalMilliseconds)
             {
                 AutoReset = true
             };
-            orderTimeoutTimer.Elapsed += OrderTimeoutOnElapsed;
-            orderTimeoutTimer.Start();
+            timeoutTimer.Elapsed += TimeoutOnElapsed;
+            timeoutTimer.Start();
         }
 
         public static string Name => "BybitFutures";
@@ -114,6 +117,11 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                             Symbol = symbolName,
                             Timeout = DateTime.Now.AddSeconds(_orderTimeout)
                         });
+                    }
+
+                    if (_positionTimeout > 0)
+                    {
+                        _positionTimeouts.Add(symbolName, DateTime.Now.AddSeconds(_positionTimeout));
                     }
 
                     return true;
@@ -192,7 +200,7 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
         public event EventHandler<PositionClosedEventArgs> OnPositionClosed;
         public event EventHandler<TickerUpdateEventArgs> OnTickerChanged;
 
-        private void OrderTimeoutOnElapsed(object sender, ElapsedEventArgs e)
+        private void TimeoutOnElapsed(object sender, ElapsedEventArgs e)
         {
             _waitHandle.Wait(_waitTimeout);
             try
@@ -229,6 +237,33 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                                     var msg = $"Order {timeoutOrder.Symbol} cancled - remaining {remaining} of {orderItem.Quantity}";
                                     Logger.Info(msg);
                                     TelegramBot.Instance.SendMessage(msg);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                foreach (var positionTimeout in _positionTimeouts)
+                {
+                    if (DateTime.Now > positionTimeout.Value)
+                    {
+                        var positions = _client.UsdPerpetualApi.Account.GetPositionAsync(positionTimeout.Key).GetAwaiter().GetResult();
+                        if (positions.Success)
+                        {
+                            var pos = positions.Data.FirstOrDefault(p => p.Quantity > 0);
+                            if (pos != null)
+                            {
+                                var side = pos.Side == PositionSide.Buy ? OrderSide.Sell : OrderSide.Buy;
+                                var qty = pos.Quantity;
+                                var result = _client.UsdPerpetualApi.Trading.PlaceOrderAsync(pos.Symbol, side, OrderType.Market, qty, TimeInForce.FillOrKill, true, true).GetAwaiter().GetResult();
+                                if (result.Success)
+                                {
+                                    Logger.Info($"Closed position by timeout {pos.Symbol}");
+                                    TelegramBot.Instance.SendMessage($"Closed position by timeout {pos.Symbol}").GetAwaiter().GetResult();
+                                }
+                                else
+                                {
+                                    Logger.Error(result.Error);
                                 }
                             }
                         }
@@ -274,7 +309,6 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                     var positions = _client.UsdPerpetualApi.Account.GetPositionAsync(symbol.Key).GetAwaiter().GetResult();
                     bool isOpen = positions.Data.Sum(d => d.Quantity) > 0;
 
-
                     if (isOpen)
                     {
                         if (!_symbols.Contains(symbol.Key))
@@ -315,6 +349,10 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             {
                 _client.UsdPerpetualApi.Trading.CancelOrderAsync(orderTimeout.Symbol, orderTimeout.Id).GetAwaiter().GetResult();
                 _orderTimeouts.Remove(orderTimeout);
+            }
+            if (_positionTimeouts.ContainsKey(symbolName))
+            {
+                _positionTimeouts.Remove(symbolName);
             }
         }
 
