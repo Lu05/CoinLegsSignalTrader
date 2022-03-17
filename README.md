@@ -16,11 +16,17 @@ But stop loss and take profit are at the exchange so this will execute for sure.
 It is best to have a linux VPSto run the app 24/7. You don't need one wich much performance. 1GB ram and some GB disk space for logging should be enough.
 If you have set up you VPS you can download the files from the [release page](https://github.com/Lu05/CoinLegsSignalTrader/releases).
 Put the files wherever  you want to on the server.
+If this is the first time you run this you maybe need to install the .Net 6 runtime.
+<br>
+https://docs.microsoft.com/en-us/dotnet/core/install/linux
+<br>
 After that go to the folder you put the files and execute 
 <br>
 `chmod 777 ./CoinLegsSignalTrader`
 <br>
 to get the needed permissions. The app needs read/write permissions if you want logging. If you don't want to log, only read should be enough.
+<br>
+To start it run `./CoinLegsSignalTrader` at the folder where you copied the files to.
 
 ### General parameters
 | Property| Type|      Usage| 
