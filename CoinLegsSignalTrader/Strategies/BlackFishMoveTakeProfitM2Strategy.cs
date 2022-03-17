@@ -21,7 +21,7 @@ namespace CoinLegsSignalTrader.Strategies
         private INotification _notification;
         private IPosition _position;
         private ISignal _signal;
-        private readonly TimeSpan _waitTimeout = TimeSpan.FromMinutes(1);
+        private readonly TimeSpan _waitTimeout = TimeSpan.FromMinutes(2);
 
         public BlackFishMoveTakeProfitM2Strategy()
         {
@@ -97,8 +97,9 @@ namespace CoinLegsSignalTrader.Strategies
                 if (_position != null)
                 {
                     _position.ExitPrice = e.ExitPrice;
+                    var pnl = e.ExchangePnl > 0 ? $"{Math.Round(e.ExchangePnl, 2)}$" : CalculationHelper.GetPnL(_position.Quantity, _position.EntryPrice, _position.ExitPrice, _position.IsShort);
                     message =
-                        $"Position closed for {_position.Notification.SymbolName}. Entry {Math.Round(_position.EntryPrice, _notification.Decimals)}, exit {Math.Round(_position.ExitPrice, _notification.Decimals)}, pnl {CalculationHelper.GetPnL(_position.Quantity, _position.EntryPrice, _position.ExitPrice, _position.IsShort)}";
+                        $"Position closed for {_position.Notification.SymbolName}. Entry {Math.Round(_position.EntryPrice, _notification.Decimals)}, exit {Math.Round(_position.ExitPrice, _notification.Decimals)}, pnl {pnl}";
                 }
                 else if (e.ClosedReason == PositionClosedReason.PositionCancled)
                 {

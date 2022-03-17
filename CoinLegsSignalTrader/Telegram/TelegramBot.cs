@@ -55,8 +55,8 @@ namespace CoinLegsSignalTrader.Telegram
                     },
                     new()
                     {
-                        Command = TelegramCommands.GetUnrealizedPnL,
-                        Description = "Gets unrealized PnL for open positions"
+                        Command = TelegramCommands.GetPositionInfos,
+                        Description = "Gets infos of open positions"
                     }
                 }).GetAwaiter().GetResult();
 
@@ -100,7 +100,7 @@ namespace CoinLegsSignalTrader.Telegram
             if (messageText != null && messageText.StartsWith('/'))
             {
                 var commandName = messageText.Remove(0, 1);
-                if (commandName == TelegramCommands.Ping || commandName == TelegramCommands.GetOpenPositions || commandName == TelegramCommands.GetUnrealizedPnL)
+                if (commandName == TelegramCommands.Ping || commandName == TelegramCommands.GetOpenPositions || commandName == TelegramCommands.GetPositionInfos)
                 {
                     if (commandName == TelegramCommands.Ping)
                     {

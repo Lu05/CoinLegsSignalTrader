@@ -2,6 +2,7 @@
 using Bybit.Net.Clients;
 using Bybit.Net.Enums;
 using Bybit.Net.Objects;
+using Bybit.Net.Objects.Models;
 using Bybit.Net.Objects.Models.Socket;
 using CoinLegsSignalTrader.Enums;
 using CoinLegsSignalTrader.EventArgs;
@@ -31,8 +32,9 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
         private readonly List<string> _symbols = new();
         private readonly Dictionary<string, int> _symbolSubscriptions = new();
         private readonly SemaphoreSlim _waitHandle = new(1, 1);
-        private readonly TimeSpan _waitTimeout = TimeSpan.FromMinutes(1);
+        private readonly TimeSpan _waitTimeout = TimeSpan.FromMinutes(2);
         private readonly int _positionTimeout;
+        private readonly Dictionary<string, BybitSymbol> _exchangeSymbols = new(); 
 
         public BybitFuturesExchange(BybitFuturesExchangeConfig config)
         {
@@ -68,9 +70,55 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             };
             timeoutTimer.Elapsed += TimeoutOnElapsed;
             timeoutTimer.Start();
+
+            var symbols = _client.UsdPerpetualApi.ExchangeData.GetSymbolsAsync().GetAwaiter().GetResult();
+            if (!symbols.Success)
+            {
+                Logger.Error(symbols.Error);
+            }
+            else
+            {
+                foreach (var symbol in symbols.Data)
+                {
+                    _exchangeSymbols.Add(symbol.Name, symbol);
+                }
+            }
+
+            var symbolUpdateTimer = new Timer(TimeSpan.FromDays(1).TotalMilliseconds)
+            {
+                AutoReset = true
+            };
+            symbolUpdateTimer.Elapsed += SymbolUpdateTimerOnElapsed;
+            symbolUpdateTimer.Start();
         }
 
         public static string Name => "BybitFutures";
+
+        
+        private void SymbolUpdateTimerOnElapsed(object sender, ElapsedEventArgs e)
+        {
+            _waitHandle.Wait(_waitTimeout);
+            try
+            {
+                var symbols = _client.UsdPerpetualApi.ExchangeData.GetSymbolsAsync().GetAwaiter().GetResult();
+                if (!symbols.Success)
+                {
+                    Logger.Error(symbols.Error);
+                }
+                else
+                {
+                    _symbols.Clear();
+                    foreach (var symbol in symbols.Data)
+                    {
+                        _exchangeSymbols.Add(symbol.Name, symbol);
+                    }
+                }
+            }
+            finally
+            {
+                _waitHandle.Release();
+            }
+        }
 
         public async Task<bool> PlaceOrderAsync(string symbolName, decimal signalPrice, bool isShort, bool isLimitOrder, decimal amount, decimal stopLoss, decimal takeProfit, decimal leverage)
         {
@@ -151,6 +199,10 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
 
         public async Task<int> GetSymbolDigits(string symbolName)
         {
+            if (_exchangeSymbols.TryGetValue(symbolName, out BybitSymbol exchangeSymbol))
+            {
+                return exchangeSymbol.PricePrecision;
+            }
             var symbol = await _client.UsdPerpetualApi.ExchangeData.GetTickerAsync(symbolName);
             return CalculationHelper.GetDigits(symbol.Data.First().LastPrice);
         }
@@ -175,19 +227,29 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             }
         }
 
-        public async Task<ExchangePositionData> GetUnrealizedPnlForSymbol(string symbolName)
+        public async Task<ExchangePositionData> GetPositionInfos(string symbolName)
         {
             var position = await _client.UsdPerpetualApi.Account.GetPositionAsync(symbolName);
             if (position.Success && position.Data.Any())
             {
                 var openPositions = position.Data.Where(p => p.Quantity > 0).ToList();
-                return new ExchangePositionData
+                var firstPosition = openPositions.FirstOrDefault(p => p.Quantity > 0);
+                if (firstPosition != null)
                 {
-                    UnrealizedPnL = openPositions.Sum(p => p.UnrealizedPnl),
-                    Quantity = openPositions.Sum(p => p.Quantity),
-                    Margin = openPositions.Sum(p => p.PositionMargin),
-                    IsValid = true
-                };
+                    return new ExchangePositionData
+                    {
+                        Symbol = symbolName,
+                        UnrealizedPnL = firstPosition.UnrealizedPnl,
+                        Quantity = firstPosition.Quantity,
+                        Margin = firstPosition.PositionMargin,
+                        IsValid = true,
+                        Leverage = firstPosition.Leverage,
+                        StopLoss = firstPosition.StopLoss,
+                        TakeProfit = firstPosition.TakeProfit,
+                        PositionSize = firstPosition.PositionValue,
+                        IsShort = firstPosition.Side == PositionSide.Sell
+                    };
+                }
             }
 
             return new ExchangePositionData
@@ -225,7 +287,7 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                             if (needSymbolRemove)
                             {
                                 Logger.Debug($"Position closed because order timeout {timeoutOrder.Symbol}");
-                                ClosePosition(timeoutOrder.Symbol, 0, PositionClosedReason.PositionCancled);
+                                ClosePosition(timeoutOrder.Symbol, 0, 0, PositionClosedReason.PositionCancled);
                             }
                             else
                             {
@@ -278,17 +340,22 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
 
         private async Task UpdateMarginMode(string symbolName, decimal leverage)
         {
+            var maxLeverage = leverage;
+            if (_exchangeSymbols.TryGetValue(symbolName, out BybitSymbol symbol))
+            {
+                maxLeverage = Math.Min(leverage, symbol.LeverageFilter.MaxLeverage);
+            }
             //first switch to not active mode, otherwise the leverage will not be updated
             WebCallResult marginUpdateResult;
             if (_marginMode == MarginMode.Isolated)
             {
-                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, leverage, leverage);
-                marginUpdateResult = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true, leverage, leverage);
+                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, maxLeverage, maxLeverage);
+                marginUpdateResult = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true, maxLeverage, maxLeverage);
             }
             else
             {
-                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true, leverage, leverage);
-                marginUpdateResult = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, leverage, leverage);
+                await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, true, maxLeverage, maxLeverage);
+                marginUpdateResult = await _client.UsdPerpetualApi.Account.SetIsolatedPositionModeAsync(symbolName, false, maxLeverage, maxLeverage);
             }
 
             if (!marginUpdateResult.Success)
@@ -323,8 +390,14 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                     }
                     else
                     {
+                        var pnl = _client.UsdPerpetualApi.Account.GetProfitAndLossHistoryAsync(symbol.Key, DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(5))).GetAwaiter().GetResult();
                         var exitPrice = symbol.Value.Average(o => o.Price);
-                        ClosePosition(symbol.Key, exitPrice, PositionClosedReason.PositionClosedSell);
+                        decimal exchangePnl = 0;
+                        if (pnl.Success && pnl.Data.Data.Any())
+                        {
+                            exchangePnl = pnl.Data.Data.First().ClosedPnl;
+                        }
+                        ClosePosition(symbol.Key, exitPrice, exchangePnl, PositionClosedReason.PositionClosedSell);
                     }
                 }
             }
@@ -334,10 +407,10 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             }
         }
 
-        private void ClosePosition(string symbolName, decimal exitPrice, PositionClosedReason reason)
+        private void ClosePosition(string symbolName, decimal exitPrice, decimal exchangePnl, PositionClosedReason reason)
         {
             _symbols.Remove(symbolName);
-            OnPositionClosed?.Invoke(this, new PositionClosedEventArgs(symbolName, exitPrice, reason));
+            OnPositionClosed?.Invoke(this, new PositionClosedEventArgs(symbolName, exitPrice, exchangePnl, reason));
             if (_symbolSubscriptions.TryGetValue(symbolName, out var id))
             {
                 _socketClient.UnsubscribeAsync(id).GetAwaiter().GetResult();

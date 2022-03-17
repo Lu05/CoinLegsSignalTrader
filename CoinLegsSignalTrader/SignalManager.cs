@@ -18,7 +18,7 @@ namespace CoinLegsSignalTrader
         private readonly Dictionary<Guid, IStrategy> _strategies = new();
         private readonly int _maxPositions;
         private readonly SemaphoreSlim _waitHandle = new(1, 1);
-        private readonly TimeSpan _waitTimeout = TimeSpan.FromMinutes(1);
+        private readonly TimeSpan _waitTimeout = TimeSpan.FromMinutes(2);
 
         public SignalManager(IConfiguration config)
         {
@@ -122,7 +122,7 @@ namespace CoinLegsSignalTrader
                     TelegramBot.Instance.SendMessage(string.Join(Environment.NewLine, positions));
                 }
             }
-            else if (e.Command == TelegramCommands.GetUnrealizedPnL)
+            else if (e.Command == TelegramCommands.GetPositionInfos)
             {
                 if (_strategies.Count == 0)
                 {
@@ -133,10 +133,10 @@ namespace CoinLegsSignalTrader
                     var result = new List<string>();
                     foreach (var strategy in _strategies)
                     {
-                        var data = strategy.Value.Exchange.GetUnrealizedPnlForSymbol(strategy.Value.SymbolName).GetAwaiter().GetResult();
+                        var data = strategy.Value.Exchange.GetPositionInfos(strategy.Value.SymbolName).GetAwaiter().GetResult();
                         if(data.IsValid)
                         {
-                            result.Add($"{strategy.Value.SymbolName} -> PnL={Math.Round(data.UnrealizedPnL, 2)}$, Margin={Math.Round(data.Margin, 2)}$");
+                            result.Add(data.AsString());
                         }
                         else
                         {

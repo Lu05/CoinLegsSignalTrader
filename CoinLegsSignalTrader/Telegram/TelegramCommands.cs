@@ -4,6 +4,6 @@
     {
         public static string Ping = "ping";
         public static string GetOpenPositions = "open_positions";
-        public static string GetUnrealizedPnL = "unrealized_pnl";
+        public static string GetPositionInfos = "pos_info";
     }
 }
