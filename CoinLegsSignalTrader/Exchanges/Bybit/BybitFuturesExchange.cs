@@ -107,7 +107,7 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
                 }
                 else
                 {
-                    _symbols.Clear();
+                    _exchangeSymbols.Clear();
                     foreach (var symbol in symbols.Data)
                     {
                         _exchangeSymbols.Add(symbol.Name, symbol);
