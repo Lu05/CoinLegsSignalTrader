@@ -190,6 +190,8 @@ alertstring = '{' + array.join(alert_array, ', ') + '}'
 alert(alertstring)
 ```
 
+> **NOTE** the direction must be set for each signal. This is new and if you want to use remote command it should be configured at the appsettings.json
+
 ## Support
 
 If you need technical support, want to talk about this project or discuss new ideas you can find it here:
