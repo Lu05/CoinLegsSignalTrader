@@ -3,4 +3,5 @@
 public interface ISignalManager
 {
     Task Execute(INotification notification);
+    Task ExecuteRemoteCommand(IRemoteCommand command);
 }

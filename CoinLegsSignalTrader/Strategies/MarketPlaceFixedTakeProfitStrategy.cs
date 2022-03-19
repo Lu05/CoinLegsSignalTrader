@@ -65,7 +65,7 @@ namespace CoinLegsSignalTrader.Strategies
                 RegisterExchangeEvents();
 
                 var amount =
-                    CalculationHelper.CalculateAmount(_signal.RiskPerTrade, _notification.StopLoss, _notification.SignalPrice);
+                    CalculationHelper.CalculateAmount(_signal.RiskPerTrade * _signal.RiskFactor, _notification.StopLoss, _notification.SignalPrice);
                 var order = await Exchange.PlaceOrderAsync(_notification.SymbolName, _notification.SignalPrice, _notification.Signal < 0, true, amount, _notification.StopLoss, takeProfit,
                     signal.Leverage);
                 if (!order)

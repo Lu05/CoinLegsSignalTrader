@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using CoinLegsSignalTrader.Enums;
 using CoinLegsSignalTrader.EventArgs;
 using CoinLegsSignalTrader.Exchanges.Bybit;
 using CoinLegsSignalTrader.Interfaces;
@@ -105,6 +106,70 @@ namespace CoinLegsSignalTrader
             finally
             {
                 _waitHandle.Release();
+            }
+        }
+
+        public async Task ExecuteRemoteCommand(IRemoteCommand command)
+        {
+            await _waitHandle.WaitAsync(_waitTimeout);
+
+            try
+            {
+                switch (command.Type)
+                {
+                    case RemoteCommandType.ChangeStrategyState:
+                    {
+                        var signals = GetSignalsByDirection(command.Target);
+                        foreach (var signal in signals)
+                        {
+                            if (command.IsSignalActive != null)
+                            {
+                                Logger.Debug($"Set state of {signal.Strategy} to {command.IsSignalActive}");
+                                signal.IsActive = (bool)command.IsSignalActive;
+                            }
+                        }
+
+                        break;
+                    }
+                    case RemoteCommandType.ChangeStrategyRisk:
+                    {
+                        var signals = GetSignalsByDirection(command.Target);
+                        foreach (var signal in signals)
+                        {
+                            if (command.RiskFactor != null)
+                            {
+                                var factor = Math.Min((decimal)command.RiskFactor, 1);
+                                Logger.Debug($"Set risk factor of {signal.Strategy} to {factor}");
+                                signal.RiskFactor = factor;
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                _waitHandle.Release();
+            }
+        }
+
+        private IEnumerable<ISignal> GetSignalsByDirection(RemoteCommandTarget commandTarget)
+        {
+            foreach (var signal in _signals)
+            {
+                switch (commandTarget)
+                {
+                    case RemoteCommandTarget.All:
+                        yield return signal;
+                        break;
+                    case RemoteCommandTarget.Long when signal.Direction == SignalDirection.Long:
+                        yield return signal;
+                        break;
+                    case RemoteCommandTarget.Short when signal.Direction == SignalDirection.Short:
+                        yield return signal;
+                        break;
+                }
             }
         }
 

@@ -1,4 +1,6 @@
-﻿namespace CoinLegsSignalTrader.Interfaces
+﻿using CoinLegsSignalTrader.Enums;
+
+namespace CoinLegsSignalTrader.Interfaces
 {
     public interface ISignal
     {
@@ -15,5 +17,8 @@
         public decimal StopLoss { get; set; }
         public decimal TrailingStartOffset { get; set; }
         public decimal TrailingOffset { get; set; }
+        public SignalDirection Direction { get; set; }
+        public bool IsActive { get; set; }
+        public decimal RiskFactor { get; set; }
     }
 }

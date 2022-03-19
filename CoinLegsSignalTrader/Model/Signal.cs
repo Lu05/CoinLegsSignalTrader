@@ -1,4 +1,5 @@
-﻿using CoinLegsSignalTrader.Interfaces;
+﻿using CoinLegsSignalTrader.Enums;
+using CoinLegsSignalTrader.Interfaces;
 
 namespace CoinLegsSignalTrader.Model
 {
@@ -17,5 +18,8 @@ namespace CoinLegsSignalTrader.Model
         public decimal StopLoss { get; set; }
         public decimal TrailingStartOffset { get; set; }
         public decimal TrailingOffset { get; set; }
+        public SignalDirection Direction { get; set; }
+        public bool IsActive { get; set; } = true;
+        public decimal RiskFactor { get; set; } = 1;
     }
 }
