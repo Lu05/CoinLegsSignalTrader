@@ -20,6 +20,6 @@ namespace CoinLegsSignalTrader.Model
         public decimal TrailingOffset { get; set; }
         public SignalDirection Direction { get; set; }
         public bool IsActive { get; set; } = true;
-        public decimal RiskFactor { get; set; } = 1;
+        public decimal RiskFactor { get; set; } = 1.0M;
     }
 }

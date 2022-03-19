@@ -153,6 +153,43 @@ Simple trailing the stop loss. Starts at TrailingStartOffset and will keep the s
 Simple strategy which takes the set take profit and stop loss into account.
 Thie difference to the MarketPlaceFixedTakeProfitStrategy is that at MarketPlaceFixedTakeProfitStrategy is always used from the signal and TakeProfitIndex have to be set.
 
+## Remote Commands
+
+It is possible to control the bot based on the market situation but it needs to be done by you.
+Eg you can write a trading view script and enable or disable the strategies for long or short.
+</br>
+The endpoint for that is http://YOUR_IP:YOUR_PORT/api/remotecommand/execute
+</br>
+Please note that if you use trading view for that you need to run your app on port 80. That's a limitation from trading view. If you execute a rest post from anywhere else you can choose your port.
+<br>
+
+Params of the json to send are:
+| Property|      Type| Required| Description| 
+|:----------|:-------------|:-------------|:-------------|
+Type | string | Yes | Command type - Values 'ChangeStrategyState' or 'ChangeStrategyRisk'
+Target | string | Yes | Command target - Values 'Long', 'Short', 'All'
+RiskFactor | decimal | Only for ChangeStrategyRisk | Factor for risk - 0.5 means only 50% risk per trade
+IsSignalActive | boolean | Only for ChangeStrategyState | Enables or disables a signal
+
+</br>
+ChangeStrategyState will change the state of a signal. If you disable a signal it will not be used for executing trades. Signals are defined at the appsettings.config
+</br>
+ChangeStrategyRisk is used to change the risk of a signal. If the market does not look good for longs you can change the risk for all long signals.
+</br>
+</br>
+Here is an example of an trading view script
+
+```:
+//@version=5
+indicator('TestSignal')
+alert_array = array.new_string()
+array.push(alert_array, '"Type": "ChangeStrategyRisk"')
+array.push(alert_array, '"Target": "Short"')
+array.push(alert_array, '"RiskFactor": "0.3"')
+alertstring = '{' + array.join(alert_array, ', ') + '}'
+alert(alertstring)
+```
+
 ## Support
 
 If you need technical support, want to talk about this project or discuss new ideas you can find it here:

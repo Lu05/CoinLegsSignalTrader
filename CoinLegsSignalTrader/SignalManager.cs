@@ -75,6 +75,11 @@ namespace CoinLegsSignalTrader
             {
                 foreach (var signal in _signals)
                 {
+                    if (!signal.IsActive)
+                    {
+                        Logger.Debug("signal not active");
+                        continue;
+                    }
                     Logger.Debug($"Executing {JsonSerializer.Serialize(signal)}");
                     if (signal.Type == notification.Type && signal.SignalTypeId == notification.SignalTypeId)
                     {
