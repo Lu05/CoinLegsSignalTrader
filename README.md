@@ -205,6 +205,10 @@ As described above the app is free of use.
 If you are making some good money with it you have multiple possibilities to support my work.
 ### Ref links
 You can create an account with my ref link.
+<br>
+<br>
+<img src="https://user-images.githubusercontent.com/3795343/159178504-8d3cf118-9a71-46c8-b85d-593c209511d5.png" width="200" />
+
 #### ByBit
 https://partner.bybit.com/b/Lu05
 <br>
