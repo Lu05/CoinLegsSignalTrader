@@ -22,7 +22,7 @@ https://docs.microsoft.com/en-us/dotnet/core/install/linux
 <br>
 After that go to the folder you put the files and execute 
 <br>
-`chmod 777 ./CoinLegsSignalTrader`
+`sudo chmod 777 ./CoinLegsSignalTrader`
 <br>
 to get the needed permissions. The app needs read/write permissions if you want logging. If you don't want to log, only read should be enough.
 <br>
@@ -206,9 +206,9 @@ If you are making some good money with it you have multiple possibilities to sup
 ### Ref links
 You can create an account with my ref link.
 #### ByBit
-https://www.bybit.com/en-US/invite?ref=MOPVGP%230
+https://partner.bybit.com/b/Lu05
 <br>
-Or ref code MOPVGP#0
+Or ref code 33417
 #### Binance
 https://accounts.binance.com/en/register?ref=38895065
 <br>
