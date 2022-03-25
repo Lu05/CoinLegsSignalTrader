@@ -2,6 +2,7 @@
 using CoinLegsSignalTrader.Enums;
 using CoinLegsSignalTrader.EventArgs;
 using CoinLegsSignalTrader.Exchanges.Bybit;
+using CoinLegsSignalTrader.Filters;
 using CoinLegsSignalTrader.Interfaces;
 using CoinLegsSignalTrader.Model;
 using CoinLegsSignalTrader.Strategies;
@@ -42,10 +43,29 @@ namespace CoinLegsSignalTrader
             {
                 ISignal signal = new Signal();
                 signalConfig.Bind(signal);
+                var filters = signalConfig.GetSection("Filters").GetChildren();
+                signal.Filters = CreateFilters(filters);
                 _signals.Add(signal);
             }
         }
-        
+
+        private IList<ISignalFilter> CreateFilters(IEnumerable<IConfigurationSection> filters)
+        {
+            var result = new List<ISignalFilter>();
+            foreach (var filter in filters)
+            {
+                var name = filter.GetValue<string>("Name");
+                if (name == "CciFilter")
+                {
+                    var cciFilter = new CciFilter();
+                    filter.Bind(cciFilter);
+                    result.Add(cciFilter);
+                }
+            }
+
+            return result;
+        }
+
         public async Task Execute(INotification notification)
         {
             if (_signals.Count == 0)
@@ -85,6 +105,25 @@ namespace CoinLegsSignalTrader
                     {
                         if (_exchanges.TryGetValue(signal.Exchange, out var exchange))
                         {
+                            bool passedFilters = true;
+                            foreach (var signalFilter in signal.Filters)
+                            {
+                                if (!await signalFilter.Pass(signal, notification, exchange))
+                                {
+                                    Logger.Info($"Could not pass {signalFilter.Name}!");
+                                    await TelegramBot.Instance.SendMessage($"Could not pass {signalFilter.Name}!");
+                                    passedFilters = false;
+                                    break;
+                                }
+
+                                Logger.Debug($"Passed {signalFilter.Name}");
+                            }
+
+                            if (!passedFilters)
+                            {
+                                continue;
+                            }
+
                             Logger.Info($"Found exchange {signal.Exchange} - {notification.SymbolName}");
                             await TelegramBot.Instance.SendMessage($"Found exchange {signal.Exchange} - {notification.SymbolName}");
                             var strategy = GetStrategyByName(signal.Strategy);

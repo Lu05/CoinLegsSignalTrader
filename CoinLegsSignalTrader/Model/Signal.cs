@@ -21,5 +21,6 @@ namespace CoinLegsSignalTrader.Model
         public SignalDirection Direction { get; set; }
         public bool IsActive { get; set; } = true;
         public decimal RiskFactor { get; set; } = 1.0M;
+        public IList<ISignalFilter> Filters { get; set; } = new List<ISignalFilter>();
     }
 }

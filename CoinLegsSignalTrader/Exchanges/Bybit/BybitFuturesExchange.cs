@@ -15,6 +15,7 @@ using CryptoExchange.Net.Objects;
 using CryptoExchange.Net.Sockets;
 using Newtonsoft.Json;
 using NLog;
+using Skender.Stock.Indicators;
 using ILogger = NLog.ILogger;
 using Timer = System.Timers.Timer;
 
@@ -225,6 +226,46 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             {
                 _waitHandle.Release();
             }
+        }
+
+        public async Task<IList<IQuote>> GetKlines(string symbolName, KLinePeriod period, DateTime start, DateTime end)
+        {
+            var data = await _client.SpotApi.ExchangeData.GetKlinesAsync(symbolName, GetKLineInterval(period), start, end);
+            IList<IQuote> result = new List<IQuote>();
+            if (data.Success)
+            {
+                foreach (var kl in data.Data)
+                {
+                    result.Add(new Quote
+                    {
+                        Close = kl.ClosePrice,
+                        High = kl.HighPrice,
+                        Low = kl.LowPrice,
+                        Open = kl.OpenPrice,
+                        Volume = kl.Volume,
+                        Date = GetKLineCloseDate(period, kl.OpenTime)
+                    });
+                }
+            }
+
+            return result;
+        }
+
+        private DateTime GetKLineCloseDate(KLinePeriod period, DateTime klOpenTime)
+        {
+            if (period == KLinePeriod.Day)
+                return klOpenTime.AddDays(1);
+            return klOpenTime;
+        }
+
+        private KlineInterval GetKLineInterval(KLinePeriod period)
+        {
+            if (period == KLinePeriod.Day)
+            {
+                return KlineInterval.OneDay;
+            }
+
+            return KlineInterval.OneDay;
         }
 
         public async Task<ExchangePositionData> GetPositionInfos(string symbolName)

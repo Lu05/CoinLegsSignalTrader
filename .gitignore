@@ -12,3 +12,4 @@ obj
 
 /CoinLegsSignalTrader/appsettings.Development.json
 /CoinLegsSignalTrader/nlog.config
+/CustomSignals

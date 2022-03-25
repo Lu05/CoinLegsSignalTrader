@@ -1,5 +1,4 @@
-﻿using System.Data;
-using CoinLegsSignalTrader.Enums;
+﻿using CoinLegsSignalTrader.Enums;
 using CoinLegsSignalTrader.Interfaces;
 
 namespace CoinLegsSignalTrader.Model

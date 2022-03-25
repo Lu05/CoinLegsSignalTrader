@@ -192,6 +192,59 @@ alert(alertstring)
 
 > **NOTE** the direction must be set for each signal. This is new and if you want to use remote command it should be configured at the appsettings.json
 
+## Filters
+Filters are a way to filter out some signals based on conditions.
+</br>
+Examples for a signal with a filter:
+```json:
+{
+      "Type": 503,
+      "SignalTypeId": 4,
+      "Exchange": "BybitFutures",
+      "Strategy": "MarketPlaceTrailingStopLossStrategy",
+      "Leverage": 10.0,
+      "RiskPerTrade": 100.0,
+      "SignalName": "",
+      "TrailingOffset": 0.00651140,
+      "TrailingStartOffset": 0.0078105,
+      "UseStopLossFromSignal": true,
+      "TakeProfit": 0.026962144,
+      "Direction": "Short",
+      "Filters": [
+        {
+          "Name": "CciFilter",
+          "Period": 20,
+          "Symbol": "BTCUSDT",
+          "Offset": 1
+        }
+      ]
+    }
+```
+Available filters are
+### CciFilter
+Will calculate the cci value for the defined symbol. If the signal direction is long and the cci value is less than 0 the signal will not be executed.</br>
+If the signal direction is short and the cci value is greater than 0 the signal will not be executed.
+</br>
+Params
+| Property|      Type|  Description| 
+|:----------|:-------------|:-------------|
+Name | string | CciFilter
+Period | int | Period for which the CCI value will be calculated
+Symbol | string | Symbol for which the CCI value will be calculated
+Offset | int | Offset for the CCI value in days. 2 Means look at the value 2 days ago
+
+Example
+```json:
+"Filters": [
+ {
+   "Name": "CciFilter",
+   "Period": 20,
+   "Symbol": "BTCUSDT",
+   "Offset": 1
+ }
+ ]
+```
+
 ## Support
 
 If you need technical support, want to talk about this project or discuss new ideas you can find it here:
