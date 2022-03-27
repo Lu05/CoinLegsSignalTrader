@@ -105,13 +105,17 @@ namespace CoinLegsSignalTrader
                     {
                         if (_exchanges.TryGetValue(signal.Exchange, out var exchange))
                         {
+                            if(! await exchange.SymbolExists(notification.SymbolName))
+                            {
+                                Logger.Info($"Symbol {notification.SymbolName} not found on exchange {signal.Exchange}");
+                                continue;
+                            }
                             bool passedFilters = true;
                             foreach (var signalFilter in signal.Filters)
                             {
                                 if (!await signalFilter.Pass(signal, notification, exchange))
                                 {
-                                    Logger.Info($"Could not pass {signalFilter.Name}!");
-                                    await TelegramBot.Instance.SendMessage($"Could not pass {signalFilter.Name}!");
+                                    await TelegramBot.Instance.SendMessage(signalFilter.Message);
                                     passedFilters = false;
                                     break;
                                 }

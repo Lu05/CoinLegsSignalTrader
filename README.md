@@ -279,6 +279,13 @@ bc1qtf3fg05xp5zau7k20sewpd0qtswfevept9v09v
 #### BSC
 0x419dB75736Ce12C6100fB3059485E4eBae366f05
 
-Also I'm using the the libraries of [jkorf](https://github.com/JKorf). U can also support him.
+### Used libraries
+
+https://github.com/JKorf/Bybit.Net<br>
+https://daveskender.github.io/Stock.Indicators/<br>
+https://github.com/TelegramBots/Telegram.Bot<br>
+https://github.com/NLog/NLog
+
+
 </br>
 The icon is from [here](https://www.flaticon.com/free-icons/robot)
