@@ -245,6 +245,28 @@ Example
  ]
 ```
 
+## FAQ
+
+### How much balance should I have to run the bot?
+In short, 12 x RiskPerTrade.</br>
+The long version:</br>
+It should be enough to execute 4 trades in parallel at the beginning.</br>
+Most of the time there will not be so many signals open at the same time.</br>
+To do that with isolated margin you need to calculate the margin needed for each trade.</br>
+I set the leverage to 18 but there are some pairs where only 12 is available.</br>
+If only 12 is available the bot will automatically use the max available leverage.</br>
+If you set the leverage above 18 you usually will get liquidated before stop loss is hit (around 3%).</br>
+So the margin needed with leverage 18 is around 2 x RiskPerTrade. If the leverage is 12 it is around 3 x RiskPerTrade. So in worst case you have 4 trades with 12x leverage. You would need 4 x 3 x RiskPerTrade => 12x.</br>
+This does not apply to cross margin. </br>
+
+
+### How to run the bot 24/7
+I personally use [screen](https://linuxize.com/post/how-to-use-linux-screen/) but there are many different options at linux.</br>
+`screen -S YourSessionName` will start a new session. If you start the bot within the session it will run also after you close the console.</br>
+`screen -r YourSessionName` will resume the session.</br>
+
+
+
 ## Support
 
 If you need technical support, want to talk about this project or discuss new ideas you can find it here:
@@ -278,6 +300,10 @@ bc1qtf3fg05xp5zau7k20sewpd0qtswfevept9v09v
 0x419dB75736Ce12C6100fB3059485E4eBae366f05 
 #### BSC
 0x419dB75736Ce12C6100fB3059485E4eBae366f05
+#### USDT ERC20/BEP20
+0x419dB75736Ce12C6100fB3059485E4eBae366f05
+#### USDT TRC20
+TZA8WRHyd4Bcmu4Nuyto6t8ATsf17fh2Bt
 
 ### Used libraries
 
@@ -285,7 +311,6 @@ https://github.com/JKorf/Bybit.Net<br>
 https://daveskender.github.io/Stock.Indicators/<br>
 https://github.com/TelegramBots/Telegram.Bot<br>
 https://github.com/NLog/NLog
-
 
 </br>
 The icon is from [here](https://www.flaticon.com/free-icons/robot)
