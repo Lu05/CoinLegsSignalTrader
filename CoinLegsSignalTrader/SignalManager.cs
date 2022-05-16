@@ -101,7 +101,7 @@ namespace CoinLegsSignalTrader
                         continue;
                     }
                     Logger.Debug($"Executing {JsonSerializer.Serialize(signal)}");
-                    if (signal.Type == notification.Type && signal.SignalTypeId == notification.SignalTypeId)
+                    if (IsSignalValid(signal, notification))
                     {
                         if (_exchanges.TryGetValue(signal.Exchange, out var exchange))
                         {
@@ -128,8 +128,8 @@ namespace CoinLegsSignalTrader
                                 continue;
                             }
 
-                            Logger.Info($"Found exchange {signal.Exchange} - {notification.SymbolName}");
-                            await TelegramBot.Instance.SendMessage($"Found exchange {signal.Exchange} - {notification.SymbolName}");
+                            Logger.Info($"Found exchange {signal.Exchange} - {notification.SymbolName} - Type {notification.SignalTypeId}");
+                            await TelegramBot.Instance.SendMessage($"Found exchange {signal.Exchange} - {notification.SymbolName} - Type {notification.SignalTypeId}");
                             var strategy = GetStrategyByName(signal.Strategy);
                             if (strategy != null)
                             {
@@ -155,6 +155,15 @@ namespace CoinLegsSignalTrader
             {
                 _waitHandle.Release();
             }
+        }
+
+        private bool IsSignalValid(ISignal signal, INotification notification)
+        {
+            //MarketPlace signal
+            if (signal.Type == 503)
+                return signal.Type == notification.Type && signal.SignalTypeId == notification.SignalTypeId;
+            //Other signals
+            return signal.Type == notification.Type && signal.Period == notification.Period;
         }
 
         public async Task ExecuteRemoteCommand(IRemoteCommand command)
@@ -272,6 +281,8 @@ namespace CoinLegsSignalTrader
                 return new MarketPlaceTrailingStopLossStrategy();
             if (strategyName == MarketPlaceCustomTakeProfitStrategy.Name)
                 return new MarketPlaceCustomTakeProfitStrategy();
+            if (strategyName == CustomSignalFixedTargetsStrategy.Name)
+                return new CustomSignalFixedTargetsStrategy();
             return null;
         }
 

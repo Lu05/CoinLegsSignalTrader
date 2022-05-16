@@ -21,5 +21,6 @@ namespace CoinLegsSignalTrader.Interfaces
         public bool IsActive { get; set; }
         public decimal RiskFactor { get; set; }
         public IList<ISignalFilter> Filters { get; set; }
+        public int Period { get; set; }
     }
 }

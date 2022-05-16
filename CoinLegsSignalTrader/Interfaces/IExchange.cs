@@ -12,6 +12,7 @@ namespace CoinLegsSignalTrader.Interfaces
         Task<int> GetSymbolDigits(string symbolName);
         Task<bool> SetStopLoss(string symbolName, bool isShort, decimal stopLoss);
         Task<IList<IQuote>> GetKlines(string symbolName, KLinePeriod period, DateTime start, DateTime end);
+        Task<decimal> GetLastPrice(string symbolName);
         Task<ExchangePositionData> GetPositionInfos(string symbolName);
         event EventHandler<OrderFilledEventArgs> OnOrderFilled;
         event EventHandler<PositionClosedEventArgs> OnPositionClosed;

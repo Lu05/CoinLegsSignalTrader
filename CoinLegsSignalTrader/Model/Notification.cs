@@ -19,6 +19,7 @@ namespace CoinLegsSignalTrader.Model
             Target4 = notification.Target4 ?? 0;
             Target5 = notification.Target5 ?? 0;
             Closed = notification.Closed ?? false;
+            Period = notification.Period ?? 0;
         }
 
         public int Type { get; set; }
@@ -34,6 +35,7 @@ namespace CoinLegsSignalTrader.Model
         public decimal Target5 { get; set; }
         public bool Closed { get; set; }
         public int Decimals { get; set; }
+        public int Period { get; set; }
         public void Round(int decimals)
         {
             Decimals = decimals;

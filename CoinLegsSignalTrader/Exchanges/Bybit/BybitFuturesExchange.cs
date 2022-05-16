@@ -198,6 +198,17 @@ namespace CoinLegsSignalTrader.Exchanges.Bybit
             return symbol.Success && symbol.Data.Any();
         }
 
+        public async Task<decimal> GetLastPrice(string symbolName)
+        {
+            var symbol = await _client.UsdPerpetualApi.ExchangeData.GetTickerAsync(symbolName);
+            if (symbol.Success)
+            {
+                return symbol.Data.First().LastPrice;
+            }
+
+            return 0;
+        }
+
         public async Task<int> GetSymbolDigits(string symbolName)
         {
             if (_exchangeSymbols.TryGetValue(symbolName, out BybitSymbol exchangeSymbol))

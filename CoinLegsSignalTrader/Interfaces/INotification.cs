@@ -15,6 +15,7 @@
         decimal Target5 { get; set; }
         bool Closed { get; set; }
         int Decimals { get; set; }
+        int Period { get; set; }
         void Round(int decimals);
     }
 }
